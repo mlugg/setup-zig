@@ -41,7 +41,7 @@ If you want to use one specific mirror, you can set it using the `mirror` option
 ```
 
 Please don't do this unnecessarily; it's not nice to hammer one mirror. This mirror is not permitted to
-be https://ziglang.org/download to avoid the oggicial websote being hit with large amounts of requests.
+be https://ziglang.org/download to avoid the official websote being hit with large amounts of requests.
 If you've experienced issues with a default mirror, please open an issue, and I will communicate with the
 mirror's owner or remove it from the list.
 
