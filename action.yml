@@ -1,0 +1,11 @@
+name: 'Setup Zig Compiler'
+description: 'Download and install the Zig compiler, and cache the global Zig cache'
+inputs:
+  version:
+    description: 'Version of the Zig compiler, e.g. "0.13.0" or "0.13.0-dev.351+64ef45eb0". "master" uses the latest nightly build. "latest" uses the latest tagged release.'
+    required: true
+    default: 'latest'
+runs:
+  using: 'node20'
+  main: 'main.js'
+  post: 'post.js'
