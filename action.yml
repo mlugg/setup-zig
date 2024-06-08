@@ -5,6 +5,10 @@ inputs:
     description: 'Version of the Zig compiler, e.g. "0.13.0" or "0.13.0-dev.351+64ef45eb0". "master" uses the latest nightly build. "latest" uses the latest tagged release.'
     required: true
     default: 'latest'
+  mirror:
+    description: 'Override of Zig download mirror to use, e.g. "https://pkg.machengine.org/zig".'
+    required: false
+    default: ''
 runs:
   using: 'node20'
   main: 'main.js'

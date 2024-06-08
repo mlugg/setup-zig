@@ -38,6 +38,12 @@ async function downloadFromMirror(mirror, tarball_name, tarball_ext) {
 }
 
 async function downloadTarball(tarball_name, tarball_ext) {
+  const preferred_mirror = core.getInput('mirror');
+  if (preferred_mirror) {
+    core.info(`Using mirror: ${preferred_mirror}`);
+    return await downloadFromMirror(preferred_mirror, tarball_name, tarball_ext);
+  }
+
   // We will attempt all mirrors before making a last-ditch attempt to the official download.
   // To avoid hammering a single mirror, we first randomize the array.
   const shuffled_mirrors = MIRRORS.map((m) => [m, Math.random()]).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
