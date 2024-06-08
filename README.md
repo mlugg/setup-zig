@@ -19,7 +19,8 @@ This will automatically download Zig and install it to `PATH`.
 
 You can use `version` to set a Zig version to download. This may be a release (`0.13.0`), a specific nightly
 build (`0.14.0-dev.2+0884a4341`), the string `master` for the latest nightly build, or the string `latest`
-for the latest full release. The default is `latest`.
+for the latest full release. It can also refer to a [Mach nominated version][mach-nominated], such as
+`2024.5.0-mach`. The default is `latest`.
 
 ```yaml
   - uses: mlugg/setup-zig@v1
@@ -43,6 +44,8 @@ Please don't do this unnecessarily; it's not nice to hammer one mirror. This mir
 be https://ziglang.org/download to avoid the oggicial websote being hit with large amounts of requests.
 If you've experienced issues with a default mirror, please open an issue, and I will communicate with the
 mirror's owner or remove it from the list.
+
+[mach-nominated]: https://machengine.org/about/nominated-zig/
 
 ## Details
 

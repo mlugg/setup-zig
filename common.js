@@ -5,6 +5,7 @@ const github = require('@actions/github');
 const exec = require('@actions/exec');
 
 const VERSIONS_JSON = 'https://ziglang.org/download/index.json';
+const MACH_VERSIONS_JSON = 'https://pkg.machengine.org/zig/index.json';
 const CACHE_PREFIX = "setup-zig-global-cache-";
 
 let _cached_version = null;
@@ -49,6 +50,13 @@ async function getVersion() {
       }
     }
     _cached_version = latest;
+  } else if (raw.includes("mach")) {
+    const resp = await fetch(MACH_VERSIONS_JSON);
+    const versions = await resp.json();
+    if (!(raw in versions)) {
+      throw new Error(`Mach nominated version '${raw}' not found`);
+    }
+    _cached_version = versions[raw].version;
   } else {
     _cached_version = raw;
   }
