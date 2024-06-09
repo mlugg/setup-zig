@@ -39,7 +39,7 @@ async function downloadFromMirror(mirror, tarball_name, tarball_ext) {
 
 async function downloadTarball(tarball_name, tarball_ext) {
   const preferred_mirror = core.getInput('mirror');
-  if (preferred_mirror.includes("://ziglang.org/")) {
+  if (preferred_mirror.includes("://ziglang.org/") || preferred_mirror.startsWith("ziglang.org/")) {
     throw new Error("'https://ziglang.org' cannot be used as mirror override; for more information see README.md");
   }
   if (preferred_mirror) {
