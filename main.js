@@ -21,9 +21,9 @@ const MIRRORS = [
 ];
 
 async function downloadFromMirror(mirror, tarball_name, tarball_ext) {
-  const tarball_path = await tc.downloadTool(`${mirror}/${tarball_name}${tarball_ext}`);
+  const tarball_path = await tc.downloadTool(`${mirror}/${tarball_name}${tarball_ext}?source=github-actions`);
 
-  const signature_response = await fetch(`${mirror}/${tarball_name}${tarball_ext}.minisig`);
+  const signature_response = await fetch(`${mirror}/${tarball_name}${tarball_ext}.minisig?source=github-actions`);
   const signature_data = Buffer.from(await signature_response.arrayBuffer());
 
   const tarball_data = await fs.readFile(tarball_path);
