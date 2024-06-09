@@ -16,8 +16,8 @@ const CANONICAL = 'https://ziglang.org/builds';
 // The list of mirrors we attempt to fetch from. These need not be trusted, as
 // we always verify the minisign signature.
 const MIRRORS = [
-  // TODO: are there any more mirrors around?
-  'https://pkg.machengine.org/zig',
+  'https://pkg.machengine.org/zig', // slimsag <stephen@hexops.com>
+  'https://zigmirror.hryx.net/zig', // hryx <codroid@gmail.com>
 ];
 
 async function downloadFromMirror(mirror, tarball_name, tarball_ext) {
