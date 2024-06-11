@@ -9,6 +9,10 @@ inputs:
     description: 'Override of Zig download mirror to use, e.g. "https://pkg.machengine.org/zig".'
     required: false
     default: ''
+  use-cache:
+    description: 'Whether to cache the global Zig cache directory.'
+    required: true
+    default: true
 runs:
   using: 'node20'
   main: 'main.js'

@@ -45,6 +45,10 @@ be https://ziglang.org/download to avoid the official website being hit with lar
 If you've experienced issues with a default mirror, please open an issue, and I will communicate with the
 mirror's owner or remove it from the list.
 
+If necessary, the caching of the global Zig cache directory can be disabled by setting the option
+`use-cache: false`. Don't do this without reason: preserving the Zig cache will typically speed things up
+and decrease the load on GitHub's runners.
+
 [mach-nominated]: https://machengine.org/about/nominated-zig/
 
 ## Details

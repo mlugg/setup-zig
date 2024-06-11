@@ -105,9 +105,13 @@ async function main() {
     }
 
     core.addPath(zig_dir);
-    await cache.restoreCache([await common.getZigCachePath()], await common.getCachePrefix());
+
     // Direct Zig to use the global cache as every local cache, so that we get maximum benefit from the caching above.
     core.exportVariable('ZIG_LOCAL_CACHE_DIR', await common.getZigCachePath());
+
+    if (core.getBooleanInput('use-cache')) {
+      await cache.restoreCache([await common.getZigCachePath()], await common.getCachePrefix());
+    }
   } catch (err) {
     core.setFailed(err.message);
   }
