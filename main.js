@@ -112,7 +112,7 @@ async function main() {
 
     core.addPath(zig_dir);
 
-    // Direct Zig to use the global cache as every local cache, so that we get maximum benefit from the caching above.
+    // Direct Zig to use the global cache as every local cache, so that we get maximum benefit from the caching below.
     core.exportVariable('ZIG_LOCAL_CACHE_DIR', await common.getZigCachePath());
 
     if (core.getBooleanInput('use-cache')) {
