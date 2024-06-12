@@ -92,13 +92,18 @@ async function main() {
       const tarball_name = await common.getTarballName();
       const tarball_ext = await common.getTarballExt();
 
+      core.info(`Fetching ${tarball_name}${tarball_ext}`);
+      const fetch_start = Date.now();
       const tarball_path = await retrieveTarball(tarball_name, tarball_ext);
+      core.info(`fetch took ${Date.now() - fetch_start} ms`);
 
       core.info(`Extracting tarball ${tarball_name}${tarball_ext}`);
 
       const zig_parent_dir = tarball_ext === '.zip' ?
+      const extract_start = Date.now();
         await tc.extractZip(tarball_path) :
         await tc.extractTar(tarball_path, null, 'xJ'); // J for xz
+      core.info(`extract took ${Date.now() - extract_start} ms`);
 
       const zig_inner_dir = path.join(zig_parent_dir, tarball_name);
       zig_dir = await tc.cacheDir(zig_inner_dir, 'zig', await common.getVersion());
