@@ -99,8 +99,8 @@ async function main() {
 
       core.info(`Extracting tarball ${tarball_name}${tarball_ext}`);
 
-      const zig_parent_dir = tarball_ext === '.zip' ?
       const extract_start = Date.now();
+      const zig_parent_dir = tarball_ext === '.zip' ?
         await tc.extractZip(tarball_path) :
         await tc.extractTar(tarball_path, null, 'xJ'); // J for xz
       core.info(`extract took ${Date.now() - extract_start} ms`);
