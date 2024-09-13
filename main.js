@@ -15,11 +15,8 @@ const CANONICAL = 'https://ziglang.org/builds';
 
 // The list of mirrors we attempt to fetch from. These need not be trusted, as
 // we always verify the minisign signature.
-const MIRRORS = [
-  'https://pkg.machengine.org/zig', // slimsag <stephen@hexops.com>
-  'https://zigmirror.hryx.net/zig', // hryx <codroid@gmail.com>
-  'https://zig.linus.dev/zig',      // linusg <mail@linusgroh.de>
-];
+// This is an array of URLs.
+const MIRRORS = require('./mirrors.json').map((x) => x[0]);
 
 async function downloadFromMirror(mirror, tarball_name, tarball_ext) {
   const tarball_path = await tc.downloadTool(`${mirror}/${tarball_name}${tarball_ext}?source=github-actions`);
