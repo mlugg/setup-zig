@@ -13,6 +13,9 @@ inputs:
     description: 'Whether to cache the global Zig cache directory.'
     required: true
     default: true
+  cache-prefix:
+    description: 'An explicit prefix key for restoring and saving the cache'
+    required: false
 runs:
   using: 'node20'
   main: 'main.js'

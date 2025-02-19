@@ -17,7 +17,7 @@ async function main() {
       }
 
       if (accessible) {
-        const prefix = await common.getCachePrefix();
+        const prefix = core.getInput('cache-prefix') || await common.getCachePrefix();
         const name = prefix + github.context.runId;
         await cache.saveCache([cache_path], name);
       }

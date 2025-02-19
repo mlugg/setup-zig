@@ -113,7 +113,8 @@ async function main() {
     core.exportVariable('ZIG_LOCAL_CACHE_DIR', await common.getZigCachePath());
 
     if (core.getBooleanInput('use-cache')) {
-      await cache.restoreCache([await common.getZigCachePath()], await common.getCachePrefix());
+      const prefix = core.getInput('cache-prefix') || await common.getCachePrefix();
+      await cache.restoreCache([await common.getZigCachePath()], prefix);
     }
   } catch (err) {
     core.setFailed(err.message);
