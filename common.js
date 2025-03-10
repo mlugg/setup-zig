@@ -67,19 +67,40 @@ async function getVersion() {
 async function getTarballName() {
   const version = await getVersion();
 
-  const arch = {
-    arm: 'armv7a',
-    arm64: 'aarch64',
-    ppc64: 'powerpc64',
-    riscv64: 'riscv64',
-    x64: 'x86_64',
+  let arch = {
+    arm:      'armv7a',
+    arm64:    'aarch64',
+    loong64:  'loongarch64',
+    mips:     'mips',
+    mipsel:   'mipsel',
+    mips64:   'mips64',
+    mips64el: 'mips64el',
+    ppc64:    'powerpc64',
+    riscv64:  'riscv64',
+    s390x:    's390x',
+    ia32:     'x86',
+    x64:      'x86_64',
   }[os.arch()];
 
-  return {
-    linux:  `zig-linux-${arch}-${version}`,
-    darwin: `zig-macos-${arch}-${version}`,
-    win32:  `zig-windows-${arch}-${version}`,
+  // For some incomprehensible reason, Node.js's brain-damaged build system explicitly throws away
+  // the knowledge that it is building for ppc64le, so os.arch() will identify it as ppc64 even on
+  // little endian.
+  if (arch === 'powerpc64' && os.endianness() === 'LE') {
+    arch = 'powerpc64le';
+  }
+
+  const platform = {
+    aix:     'aix',
+    android: 'android',
+    freebsd: 'freebsd',
+    linux:   'linux',
+    darwin:  'macos',
+    openbsd: 'openbsd',
+    sunos:   'solaris',
+    win32:   'windows',
   }[os.platform()];
+
+  return `zig-${platform}-${arch}-${version}`;
 }
 
 async function getTarballExt() {
