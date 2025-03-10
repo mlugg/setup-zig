@@ -135,7 +135,9 @@ async function getTarballExt() {
 async function getCachePrefix() {
   const tarball_name = await getTarballName();
   const job_name = github.context.job.replaceAll(/[^\w]/g, "_");
-  return `setup-zig-cache-${job_name}-${tarball_name}-`;
+  const user_key = core.getInput('cache-key');
+
+  return `setup-zig-cache-${job_name}-${tarball_name}-${user_key}-`;
 }
 
 async function getZigCachePath() {

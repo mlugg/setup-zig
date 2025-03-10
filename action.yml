@@ -12,6 +12,10 @@ inputs:
     description: 'Whether to cache the global Zig cache directory.'
     required: true
     default: true
+  cache-key:
+    description: 'Additional cache key component to include when caching the global Zig cache directory. When using a matrix strategy, this should include the matrix variables to ensure all jobs are cached. Matrix variables which decide the OS can be omitted, since the OS is always included in the cache key.'
+    required: false
+    default: ''
 runs:
   using: 'node20'
   main: 'main.js'

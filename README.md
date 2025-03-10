@@ -51,7 +51,13 @@ If necessary, the caching of the global Zig cache directory can be disabled by s
 `use-cache: false`. Don't do this without reason: preserving the Zig cache will typically speed things up
 and decrease the load on GitHub's runners.
 
+If you are using a [matrix strategy][matrix] for your workflow, you may need to populate the `cache-key` option
+with all of your matrix variables to ensure that every job is correctly cached. Unfortunately, GitHub does not
+provide any means for the Action to automatically distinguish jobs in a matrix. However, variables which select
+the runner OS can be omitted from the `cache-key`, since the runner OS is included in the cache key by default.
+
 [mach-nominated]: https://machengine.org/about/nominated-zig/
+[matrix]: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow
 
 ## Details
 
