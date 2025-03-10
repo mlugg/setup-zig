@@ -56,6 +56,11 @@ with all of your matrix variables to ensure that every job is correctly cached. 
 provide any means for the Action to automatically distinguish jobs in a matrix. However, variables which select
 the runner OS can be omitted from the `cache-key`, since the runner OS is included in the cache key by default.
 
+Zig cache directories can get incredibly large over time. By default, this Action will clear the cache directory
+once its size exceeds 2 GiB. This threshold can be changed by setting the `cache-size-limit` option to a different
+value (in MiB); for instance, `cache-size-limit: 4096` for a 4 GiB limit. The limit can be disabled entirely by
+setting `cache-size-limit: 0`.
+
 [mach-nominated]: https://machengine.org/about/nominated-zig/
 [matrix]: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow
 

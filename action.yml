@@ -16,6 +16,10 @@ inputs:
     description: 'Additional cache key component to include when caching the global Zig cache directory. When using a matrix strategy, this should include the matrix variables to ensure all jobs are cached. Matrix variables which decide the OS can be omitted, since the OS is always included in the cache key.'
     required: false
     default: ''
+  cache-size-limit:
+    description: 'The maximum permitted size of the global Zig cache directory, in MiB. When the cache directory exceeds this size, it is cleared. Default is 2048 (2 GiB). 0 means no limit.'
+    required: true
+    default: 2048
 runs:
   using: 'node20'
   main: 'main.js'
