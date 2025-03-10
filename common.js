@@ -9,7 +9,7 @@ const VERSIONS_JSON = 'https://ziglang.org/download/index.json';
 const MACH_VERSIONS_JSON = 'https://pkg.machengine.org/zig/index.json';
 const CACHE_PREFIX = "setup-zig-global-cache-";
 
-const MINIMUM_ZIG_VERSION_REGEX = /\.minimum_zig_version\s*=\s*"(.*?)"/;
+const MINIMUM_ZIG_VERSION_REGEX = /\.\s*minimum_zig_version\s*=\s*"(.*?)"/;
 
 let _cached_version = null;
 async function getVersion() {
