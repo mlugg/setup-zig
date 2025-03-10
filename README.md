@@ -20,7 +20,9 @@ This will automatically download Zig and install it to `PATH`.
 You can use `version` to set a Zig version to download. This may be a release (`0.13.0`), a specific nightly
 build (`0.14.0-dev.2+0884a4341`), the string `master` for the latest nightly build, or the string `latest`
 for the latest full release. It can also refer to a [Mach nominated version][mach-nominated], such as
-`2024.5.0-mach`. The default is `latest`.
+`2024.5.0-mach`. Finally, leaving the value empty (the default) will cause the action to attempt to resolve
+the Zig version from the `minimum_zig_version` field in `build.zig.zon`, falling back to `latest` if that
+isn't possible.
 
 ```yaml
   - uses: mlugg/setup-zig@v1
