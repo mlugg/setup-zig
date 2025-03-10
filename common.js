@@ -1,4 +1,5 @@
 const os = require('os');
+const fs = require('fs');
 const path = require('path');
 const core = require('@actions/core');
 const github = require('@actions/github');
@@ -8,13 +9,33 @@ const VERSIONS_JSON = 'https://ziglang.org/download/index.json';
 const MACH_VERSIONS_JSON = 'https://pkg.machengine.org/zig/index.json';
 const CACHE_PREFIX = "setup-zig-global-cache-";
 
+const MINIMUM_ZIG_VERSION_REGEX = /\.\s*minimum_zig_version\s*=\s*"(.*?)"/;
+
 let _cached_version = null;
 async function getVersion() {
   if (_cached_version != null) {
     return _cached_version;
   }
 
-  const raw = core.getInput('version');
+  let raw = core.getInput('version');
+  if (raw === '') {
+    try {
+      const zon = await fs.promises.readFile('build.zig.zon', 'utf8');
+      const match = MINIMUM_ZIG_VERSION_REGEX.exec(zon);
+
+      if (match !== null) {
+        _cached_version = match[1];
+        return _cached_version;
+      }
+
+      core.info('Failed to find minimum_zig_version in build.zig.zon (using latest)');
+    } catch (e) {
+      core.info(`Failed to read build.zig.zon (using latest): ${e}`);
+    }
+
+    raw = 'latest';
+  }
+
   if (raw === 'master') {
     const resp = await fetch(VERSIONS_JSON);
     const versions = await resp.json();
