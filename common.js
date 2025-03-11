@@ -9,6 +9,9 @@ const VERSIONS_JSON = 'https://ziglang.org/download/index.json';
 const MACH_VERSIONS_JSON = 'https://pkg.machengine.org/zig/index.json';
 const CACHE_PREFIX = "setup-zig-global-cache-";
 
+// Mach uses `mach_zig_version` in `build.zig.zon` to signify Mach nominated versions.
+// See: https://github.com/marler8997/anyzig?tab=readme-ov-file#mach-versions-and-download-mirror
+const MACH_ZIG_VERSION_REGEX = /\.\s*mach_zig_version\s*=\s*"(.*?)"/;
 const MINIMUM_ZIG_VERSION_REGEX = /\.\s*minimum_zig_version\s*=\s*"(.*?)"/;
 
 let _cached_version = null;
@@ -21,14 +24,22 @@ async function getVersion() {
   if (raw === '') {
     try {
       const zon = await fs.promises.readFile('build.zig.zon', 'utf8');
-      const match = MINIMUM_ZIG_VERSION_REGEX.exec(zon);
 
+      // Look for `mach_zig_version` first
+      let match = MACH_ZIG_VERSION_REGEX.exec(zon);
+      if (match !== null) {
+        _cached_version = await getMachVersion(match[1]);
+        return _cached_version;
+      }
+
+      // Else, look for `mach_zig_version` first
+      match = MINIMUM_ZIG_VERSION_REGEX.exec(zon);
       if (match !== null) {
         _cached_version = match[1];
         return _cached_version;
       }
 
-      core.info('Failed to find minimum_zig_version in build.zig.zon (using latest)');
+      core.info('Failed to find `mach_zig_version` or `minimum_zig_version` in build.zig.zon (using latest)');
     } catch (e) {
       core.info(`Failed to read build.zig.zon (using latest): ${e}`);
     }
@@ -37,52 +48,62 @@ async function getVersion() {
   }
 
   if (raw === 'master') {
-    const resp = await fetch(VERSIONS_JSON);
-    const versions = await resp.json();
-    _cached_version = versions['master'].version;
+    _cached_version = await getMasterVersion();
   } else if (raw === 'latest') {
-    const resp = await fetch(VERSIONS_JSON);
-    const versions = await resp.json();
-    let latest = null;
-    let latest_major;
-    let latest_minor;
-    let latest_patch;
-    for (const version in versions) {
-      if (version === 'master') continue;
-      const [major_str, minor_str, patch_str] = version.split('.')
-      const major = Number(major_str);
-      const minor = Number(minor_str);
-      const patch = Number(patch_str);
-      if (latest === null) {
-        latest = version;
-        latest_major = major;
-        latest_minor = minor;
-        latest_patch = patch;
-        continue;
-      }
-      if (major > latest_major ||
-          (major == latest_major && minor > latest_minor) ||
-          (major == latest_major && minor == latest_minor && patch > latest_patch))
-      {
-        latest = version;
-        latest_major = major;
-        latest_minor = minor;
-        latest_patch = patch;
-      }
-    }
-    _cached_version = latest;
+    _cached_version = await getLatestVersion();
   } else if (raw.includes("mach")) {
-    const resp = await fetch(MACH_VERSIONS_JSON);
-    const versions = await resp.json();
-    if (!(raw in versions)) {
-      throw new Error(`Mach nominated version '${raw}' not found`);
-    }
-    _cached_version = versions[raw].version;
+    _cached_version = await getMachVersion(raw);
   } else {
     _cached_version = raw;
   }
 
   return _cached_version;
+}
+
+async function getMachVersion(raw) {
+  const resp = await fetch(MACH_VERSIONS_JSON);
+  const versions = await resp.json();
+  if (!(raw in versions)) {
+    throw new Error(`Mach nominated version '${raw}' not found`);
+  }
+  return versions[raw].version;
+}
+async function getMasterVersion() {
+  const resp = await fetch(VERSIONS_JSON);
+  const versions = await resp.json();
+  return versions['master'].version;
+}
+async function getLatestVersion() {
+  const resp = await fetch(VERSIONS_JSON);
+  const versions = await resp.json();
+  let latest = null;
+  let latest_major;
+  let latest_minor;
+  let latest_patch;
+  for (const version in versions) {
+    if (version === 'master') continue;
+    const [major_str, minor_str, patch_str] = version.split('.')
+    const major = Number(major_str);
+    const minor = Number(minor_str);
+    const patch = Number(patch_str);
+    if (latest === null) {
+      latest = version;
+      latest_major = major;
+      latest_minor = minor;
+      latest_patch = patch;
+      continue;
+    }
+    if (major > latest_major ||
+        (major == latest_major && minor > latest_minor) ||
+        (major == latest_major && minor == latest_minor && patch > latest_patch))
+    {
+      latest = version;
+      latest_major = major;
+      latest_minor = minor;
+      latest_patch = patch;
+    }
+  }
+  return latest;
 }
 
 async function getTarballName() {
