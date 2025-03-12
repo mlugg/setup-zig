@@ -14,7 +14,7 @@ echo "|:-:|:-:|:-:|" >> "${summary_file}"
 jq '.[] | .[0] + " " + .[1]' -r <mirrors.json | while read -r mirror_url mirror_name; do
 	curl -w "%{time_total}" -L "$mirror_url/$filename" -o "$temp_path" > "${time_file}"
 	download_status="$?"
-    echo "| ${mirror_name} | ${mirror_url} | $(cat ${time_file}) |" >> "${summary_file}"
+	echo "| ${mirror_name} | ${mirror_url} | $(cat ${time_file}) |" >>"${summary_file}"
 	mirror_sum="$(sha512sum "$temp_path")"
 
 	if [ "$download_status" -eq 0 ]; then
