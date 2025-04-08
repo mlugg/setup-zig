@@ -50,7 +50,7 @@ function parseSignature(sig_buf) {
   sig_buf = sig_buf.subarray(trusted_header.byteLength);
 
   // Read and skip trusted comment
-  const trusted_comment_end = sig_bug.indexOf('\n');
+  const trusted_comment_end = sig_buf.indexOf('\n');
   const trusted_comment = sig_buf.subarray(0, trusted_comment_end);
   sig_buf = sig_buf.subarray(trusted_comment_end + 1);
 
