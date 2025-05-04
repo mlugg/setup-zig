@@ -39,16 +39,20 @@ async function main() {
 }
 
 async function totalSize(p) {
-  const stat = await fs.stat(p);
-  if (stat.isFile()) return stat.size;
-  if (stat.isDirectory()) {
-    let total = 0;
-    for (const entry of await fs.readdir(p)) {
-      total += await totalSize(path.join(p, entry));
+  try {
+    const stat = await fs.stat(p);
+    if (stat.isFile()) return stat.size;
+    if (stat.isDirectory()) {
+      let total = 0;
+      for (const entry of await fs.readdir(p)) {
+        total += await totalSize(path.join(p, entry));
+      }
+      return total;
     }
-    return total;
+    return 0;
+  } catch {
+    return 0;
   }
-  return 0;
 }
 
 async function rmDirContents(dir) {
