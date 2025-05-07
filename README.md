@@ -11,7 +11,7 @@ jobs:
     name: Build and Test
     steps:
       - uses: actions/checkout@v3
-      - uses: mlugg/setup-zig@v1
+      - uses: mlugg/setup-zig@v2
       - run: zig build test
 ```
 
@@ -25,7 +25,7 @@ the Zig version from the `minimum_zig_version` field in `build.zig.zon`, falling
 isn't possible.
 
 ```yaml
-  - uses: mlugg/setup-zig@v1
+  - uses: mlugg/setup-zig@v2
     with:
       version: 0.13.0
 ```
@@ -37,7 +37,7 @@ isn't possible.
 If you want to use one specific mirror, you can set it using the `mirror` option:
 
 ```yaml
-  - uses: mlugg/setup-zig@v1
+  - uses: mlugg/setup-zig@v2
     with:
       mirror: 'https://pkg.machengine.org/zig'
 ```
