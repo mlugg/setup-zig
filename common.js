@@ -142,7 +142,16 @@ async function getTarballName() {
     win32:   'windows',
   }[os.platform()];
 
-  return `zig-${platform}-${arch}-${version}`;
+  let legacy_format = true;
+  const parts = version.split('.');
+  if (parts.length === 3) {
+    const major = parseInt(parts[0]);
+    const minor = parseInt(parts[1]);
+    const patch = parseInt(parts[2]);
+    legacy_format = major === 0 && minor < 14 || (minor === 14 && patch === 0);
+  }
+
+  return legacy_format ? `zig-${platform}-${arch}-${version}` : `zig-${arch}-${platform}-${version}`;
 }
 
 async function getTarballExt() {
