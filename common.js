@@ -142,7 +142,45 @@ async function getTarballName() {
     win32:   'windows',
   }[os.platform()];
 
-  return `zig-${platform}-${arch}-${version}`;
+  if (useLegacyTarballName(version)) {
+    return `zig-${platform}-${arch}-${version}`;
+  } else {
+    return `zig-${arch}-${platform}-${version}`;
+  }
+}
+// Before version 0.14.1 / dev version 0.15.0-dev.631+9a3540d61, Zig tarballs were named like:
+//   `zig-linux-x86_64-0.14.0`
+// After that version, they are named like:
+//   `zig-x86_64-linux-0.14.0`
+// So, the architecture and OS fields were flipped to align with how target triples work.
+function useLegacyTarballName(version) {
+  // We are looking for full versions above
+  const parts = version.split('.');
+  if (parts.length == 3) {
+    // We have a full version like '0.14.0'
+    if (parts[0] !== "0") return false; // 1.x.x or greater
+    if (parts[1] === "14" && parts[2] !== "0") return false; // 0.14.1 or greater
+    const minor = parseInt(parts[1]);
+    if (!Number.isFinite(minor)) return false; // malformed minor version
+    if (minor >= 15) return false; // 0.15.x or greater
+    return true; // 0.14.1
+  } else if (parts.length == 4) {
+    // We have a dev version like '0.15.0-dev.631+9a3540d61'
+    if (parts[0] !== "0") return false; // 1.x.x or greater
+    if (parts[1] === "15" && parts[2] == "0-dev") {
+      const dev_version = parseInt(parts[3].split('+')[0]); // this is the '631' part in the example above
+      if (!Number.isFinite(dev_version)) return false; // malformed dev version
+      if (dev_version >= 631) return false; // 0.15.0-dev.631+9a3540d61 or greater
+      return true; // 0.15.0-dev before the change
+    }
+    const minor = parseInt(parts[1]);
+    if (!Number.isFinite(minor)) return false; // malformed minor version
+    if (minor >= 15) return false; // 0.15.1-dev or greater (in practice this is 0.16.0-dev or greater)
+    return true; // We caught 0.15.0-dev above, so this must be 0.14.x-dev or below.
+  } else {
+    // Malformed version
+    return false;
+  }
 }
 
 async function getTarballExt() {
