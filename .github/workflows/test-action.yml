@@ -1,0 +1,150 @@
+name: Test Setup Zig Action
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  test-basic:
+    name: Test Basic Functionality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig (Latest)
+        uses: ./
+        with:
+          version: 'latest'
+          use-cache: true
+
+      - name: Test Zig Installation
+        run: |
+          zig version
+          zig zen
+
+  test-specific-version:
+    name: Test Specific Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig 0.13.0
+        uses: ./
+        with:
+          version: '0.13.0'
+          use-cache: true
+
+      - name: Verify Version
+        run: |
+          zig version | grep "0.13.0"
+
+  test-master:
+    name: Test Master Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig Master
+        uses: ./
+        with:
+          version: 'master'
+          use-cache: true
+
+      - name: Test Master Build
+        run: |
+          zig version
+          echo "const std = @import(\"std\"); pub fn main() void { std.debug.print(\"Hello from Zig!\\n\", .{}); }" > hello.zig
+          zig run hello.zig
+
+  test-cache-functionality:
+    name: Test Cache Performance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: First Setup (Cache Miss)
+        uses: ./
+        with:
+          version: '0.13.0'
+          use-cache: true
+          cache-key: 'test-cache-key'
+
+      - name: Create Test Project
+        run: |
+          mkdir test-project && cd test-project
+          zig init-exe
+          zig build
+
+      - name: Second Setup (Should be Cache Hit)
+        uses: ./
+        with:
+          version: '0.13.0'
+          use-cache: true
+          cache-key: 'test-cache-key'
+
+  test-matrix:
+    name: Test Multiple Platforms
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        zig-version: ['0.13.0', 'latest']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: ./
+        with:
+          version: ${{ matrix.zig-version }}
+          use-cache: true
+          cache-key: ${{ matrix.os }}-${{ matrix.zig-version }}
+
+      - name: Test Cross-Platform
+        run: |
+          zig version
+          echo "const std = @import(\"std\"); pub fn main() void { std.debug.print(\"Hello from ${{ matrix.os }}!\\n\", .{}); }" > hello.zig
+          zig run hello.zig
+
+  test-job-summary:
+    name: Test Job Summary Feature
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig with Summary
+        uses: ./
+        with:
+          version: 'latest'
+          use-cache: true
+          cache-key: 'summary-test'
+
+      - name: Verify Job Summary
+        run: |
+          echo "Job summary should be visible in the Actions tab"
+          echo "Check the summary for cache performance and timing metrics"
+
+  test-without-cache:
+    name: Test Without Cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig (No Cache)
+        uses: ./
+        with:
+          version: '0.13.0'
+          use-cache: false
+
+      - name: Test No Cache Setup
+        run: |
+          zig version

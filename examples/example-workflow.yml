@@ -1,0 +1,45 @@
+name: Example Zig Project
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Zig Project
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        zig-version: ['0.13.0', 'latest']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: your-username/setup-zig@main # Replace with your GitHub username/repo
+        with:
+          version: ${{ matrix.zig-version }}
+          use-cache: true
+          cache-key: ${{ matrix.os }}-${{ matrix.zig-version }}
+
+      - name: Create Simple Zig Program
+        run: |
+          echo 'const std = @import("std");
+
+          pub fn main() !void {
+              const stdout = std.io.getStdOut().writer();
+              try stdout.print("Hello from Zig {s} on {s}!\n", .{ @import("builtin").zig_version_string, @import("builtin").target.os.tag.name() });
+          }' > hello.zig
+
+      - name: Build and Run
+        run: |
+          zig run hello.zig
+
+      - name: Test Build System
+        run: |
+          zig init-exe
+          zig build
+          ./zig-out/bin/hello  # On Windows this would be zig-out\bin\hello.exe
