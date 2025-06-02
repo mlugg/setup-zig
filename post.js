@@ -21,10 +21,16 @@ async function main() {
       if (accessible) {
         const size = await totalSize(cachePath);
         const sizeLimit = core.getInput('cache-size-limit') * 1024 * 1024; // MiB -> bytes
-        
-        // Log cache size for monitoring
-        core.info(`Zig global cache size: ${(size / 1024 / 1024).toFixed(2)} MiB`);
-        
+
+        // Log comprehensive cache size for monitoring
+        const sizeMiB = (size / 1024 / 1024).toFixed(2);
+        const limitMiB = sizeLimit > 0 ? (sizeLimit / 1024 / 1024).toFixed(0) : 'unlimited';
+        core.info(`Zig global cache size: ${sizeMiB} MiB (limit: ${limitMiB} MiB)`);
+
+        // Count cache entries for additional analytics
+        const cacheEntries = await countCacheEntries(cachePath);
+        core.info(`Cache contains ${cacheEntries} entries`);
+
         if (sizeLimit !== 0 && size > sizeLimit) {
           core.info(`Cache directory reached ${size} bytes, exceeding limit of ${sizeLimit} bytes; clearing cache`);
           // We want to clear the cache and start over. Unfortunately, we can't programmatically
@@ -65,6 +71,25 @@ async function totalSize(p) {
       return total;
     }
     return 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function countCacheEntries(dir) {
+  try {
+    const entries = await fs.readdir(dir);
+    let count = 0;
+    for (const entry of entries) {
+      const entryPath = path.join(dir, entry);
+      const stat = await fs.stat(entryPath);
+      if (stat.isDirectory()) {
+        count += await countCacheEntries(entryPath);
+      } else {
+        count += 1;
+      }
+    }
+    return count;
   } catch {
     return 0;
   }

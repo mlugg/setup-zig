@@ -70,8 +70,22 @@ This action attempts to download the requested Zig tarball from a set of mirrors
 a last resort, the official Zig website is used. The tarball's minisign signature is also downloaded and
 verified to ensure binaries have not been tampered with. The tarball is cached between runs and workflows.
 
-The global Zig cache directory (`~/.cache/zig` on Linux) is automatically cached between runs, and all
-local caches are redirected to the global cache directory to make optimal use of this cross-run caching.
+The global Zig cache directory (`~/.cache/zig` on Linux) is automatically cached between runs using an
+intelligent cache key hierarchy that maximizes cache reuse:
+
+1. **Primary cache key**: Includes Zig version, OS, architecture, and any user-provided cache key
+2. **Fallback cache keys**: When an exact match isn't found, the action tries:
+   - Same Zig version without user cache key
+   - Version-agnostic cache for same OS/architecture
+   - Any Zig cache for same OS/architecture
+   - Broad fallback for any Zig cache
+
+This hierarchical approach ensures optimal cache reuse across different workflow configurations while
+maintaining isolation when needed. All local caches are redirected to the global cache directory to
+make optimal use of this cross-run caching.
+
+The action provides detailed cache analytics through outputs (`cache-hit`, `cache-key-used`, `zig-version`)
+and comprehensive logging of cache operations including timing and size information.
 
 ## Adding a mirror
 

@@ -82,7 +82,7 @@ async function retrieveTarball(tarballName, tarballExt) {
     const restoreStart = Date.now();
     const restoredKey = await cache.restoreCache([tarballCachePath], cacheKey, restoreKeys);
     const restoreTime = Date.now() - restoreStart;
-    
+
     if (restoredKey) {
       core.info(`Zig tarball cache restored from key: ${restoredKey} (${restoreTime}ms)`);
       return tarballCachePath;
@@ -94,7 +94,7 @@ async function retrieveTarball(tarballName, tarballExt) {
   core.info(`Cache miss. Fetching Zig ${await common.getVersion()}`);
   const downloadedPath = await downloadTarball(`${tarballName}${tarballExt}`);
   await fs.copyFile(downloadedPath, tarballCachePath);
-  
+
   try {
     const saveStart = Date.now();
     await cache.saveCache([tarballCachePath], cacheKey);
@@ -103,7 +103,7 @@ async function retrieveTarball(tarballName, tarballExt) {
   } catch (error) {
     core.warning(`Failed to save tarball cache: ${error.message}`);
   }
-  
+
   return tarballCachePath;
 }
 
@@ -139,7 +139,7 @@ async function main() {
     }
 
     core.addPath(zigDir);
-    
+
     // Set version output for downstream jobs
     const resolvedVersion = await common.getVersion();
     core.setOutput('zig-version', resolvedVersion);
@@ -151,33 +151,42 @@ async function main() {
     if (core.getBooleanInput('use-cache')) {
       const cacheKey = await common.getCachePrefix();
       const tarballName = await common.getTarballName();
-      
+
+      // Log cache key information for debugging
+      core.info(`Cache configuration: key="${cacheKey}", tarball="${tarballName}"`);
+
       // Create a hierarchy of cache keys for optimal fallback
+      // Note: The primary key is passed separately, restoreKeys contains only fallbacks
       const restoreKeys = [
-        cacheKey, // Exact match: setup-zig-cache-zig-x86_64-linux-0.14.0-userkey
         `setup-zig-cache-${tarballName}`, // Same version, no user key
         `setup-zig-cache-${tarballName.split('-').slice(0, -1).join('-')}`, // Version-agnostic: setup-zig-cache-zig-x86_64-linux
         'setup-zig-cache-zig-', // Any Zig cache for same arch/platform
         'setup-zig-cache-' // Broad fallback for any Zig cache
       ];
 
-      const restoreStart = Date.now();
-      const restoredKey = await cache.restoreCache([await common.getZigCachePath()], cacheKey, restoreKeys);
-      const restoreTime = Date.now() - restoreStart;
-      
-      if (restoredKey) {
-        core.info(`Zig global cache restored from key: ${restoredKey} (${restoreTime}ms)`);
-        if (restoredKey !== cacheKey) {
-          core.info(`Cache fallback used - exact key was: ${cacheKey}`);
+      try {
+        const restoreStart = Date.now();
+        const restoredKey = await cache.restoreCache([await common.getZigCachePath()], cacheKey, restoreKeys);
+        const restoreTime = Date.now() - restoreStart;
+
+        if (restoredKey) {
+          core.info(`Zig global cache restored from key: ${restoredKey} (${restoreTime}ms)`);
+          if (restoredKey !== cacheKey) {
+            core.info(`Cache fallback used - exact key was: ${cacheKey}`);
+          }
+
+          // Set output for cache hit analytics
+          core.setOutput('cache-hit', 'true');
+          core.setOutput('cache-key-used', restoredKey);
+        } else {
+          core.info(`No Zig global cache found after ${restoreTime}ms, starting fresh`);
+          core.setOutput('cache-hit', 'false');
+          core.setOutput('cache-key-used', 'none');
         }
-        
-        // Set output for cache hit analytics
-        core.setOutput('cache-hit', 'true');
-        core.setOutput('cache-key-used', restoredKey);
-      } else {
-        core.info(`No Zig global cache found after ${restoreTime}ms, starting fresh`);
+      } catch (error) {
+        core.warning(`Cache restore failed: ${error.message}. Continuing without cache.`);
         core.setOutput('cache-hit', 'false');
-        core.setOutput('cache-key-used', 'none');
+        core.setOutput('cache-key-used', 'error');
       }
     }
   } catch (err) {
