@@ -28,6 +28,6 @@ outputs:
   zig-version:
     description: 'The resolved Zig version that was installed'
 runs:
-  using: 'node20'
+  using: 'node22'
   main: 'main.js'
   post: 'post.js'
