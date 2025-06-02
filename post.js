@@ -15,21 +15,37 @@ async function main() {
         await fs.access(cachePath, fs.constants.R_OK);
       } catch {
         accessible = false;
+        core.info('Zig global cache directory not found or not accessible');
       }
 
       if (accessible) {
         const size = await totalSize(cachePath);
         const sizeLimit = core.getInput('cache-size-limit') * 1024 * 1024; // MiB -> bytes
+        
+        // Log cache size for monitoring
+        core.info(`Zig global cache size: ${(size / 1024 / 1024).toFixed(2)} MiB`);
+        
         if (sizeLimit !== 0 && size > sizeLimit) {
           core.info(`Cache directory reached ${size} bytes, exceeding limit of ${sizeLimit} bytes; clearing cache`);
           // We want to clear the cache and start over. Unfortunately, we can't programmatically
           // remove the old cache entries, so we instead want to save an empty cache directory.
           // To do this, delete all the contents of the cache directory before saving the cache.
           await rmDirContents(cachePath);
+          core.info('Cache directory cleared due to size limit');
         }
 
-        const cacheKey = await common.getCachePrefix();
-        await cache.saveCache([cachePath], cacheKey);
+        try {
+          const cacheKey = await common.getCachePrefix();
+          const saveStart = Date.now();
+          await cache.saveCache([cachePath], cacheKey);
+          const saveTime = Date.now() - saveStart;
+          core.info(`Cache saved successfully in ${saveTime}ms with key: ${cacheKey}`);
+        } catch (error) {
+          // Don't fail the action if cache save fails
+          core.warning(`Failed to save cache: ${error.message}`);
+        }
+      } else {
+        core.info('No Zig global cache to save (directory not accessible)');
       }
     }
   } catch (err) {

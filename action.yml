@@ -20,6 +20,13 @@ inputs:
     description: 'The maximum permitted size of the global Zig cache directory, in MiB. When the cache directory exceeds this size, it is cleared. Default is 2048 (2 GiB). 0 means no limit.'
     required: true
     default: 2048
+outputs:
+  cache-hit:
+    description: 'Whether the Zig global cache was restored from a previous run'
+  cache-key-used:
+    description: 'The cache key that was used to restore the cache, or "none" if no cache was found'
+  zig-version:
+    description: 'The resolved Zig version that was installed'
 runs:
   using: 'node20'
   main: 'main.js'

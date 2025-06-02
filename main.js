@@ -74,20 +74,36 @@ async function retrieveTarball(tarballName, tarballExt) {
 
   // Try to restore the cache with prefix fallback
   const restoreKeys = [
-    `setup-zig-tarball-${tarballName.split('-').slice(0, -1).join('-')}-`, // Version-agnostic prefix
+    `setup-zig-tarball-${tarballName.split('-').slice(0, -1).join('-')}`, // Version-agnostic prefix
     'setup-zig-tarball-' // Broad prefix fallback
   ];
 
-  const restoredKey = await cache.restoreCache([tarballCachePath], cacheKey, restoreKeys);
-  if (restoredKey) {
-    core.info(`Zig tarball cache restored from key: ${restoredKey}`);
-    return tarballCachePath;
+  try {
+    const restoreStart = Date.now();
+    const restoredKey = await cache.restoreCache([tarballCachePath], cacheKey, restoreKeys);
+    const restoreTime = Date.now() - restoreStart;
+    
+    if (restoredKey) {
+      core.info(`Zig tarball cache restored from key: ${restoredKey} (${restoreTime}ms)`);
+      return tarballCachePath;
+    }
+  } catch (error) {
+    core.warning(`Cache restore failed: ${error.message}. Proceeding with download.`);
   }
 
   core.info(`Cache miss. Fetching Zig ${await common.getVersion()}`);
   const downloadedPath = await downloadTarball(`${tarballName}${tarballExt}`);
-  await fs.copyFile(downloadedPath, tarballCachePath)
-  await cache.saveCache([tarballCachePath], cacheKey);
+  await fs.copyFile(downloadedPath, tarballCachePath);
+  
+  try {
+    const saveStart = Date.now();
+    await cache.saveCache([tarballCachePath], cacheKey);
+    const saveTime = Date.now() - saveStart;
+    core.info(`Tarball cached with key: ${cacheKey} (${saveTime}ms)`);
+  } catch (error) {
+    core.warning(`Failed to save tarball cache: ${error.message}`);
+  }
+  
   return tarballCachePath;
 }
 
@@ -123,23 +139,45 @@ async function main() {
     }
 
     core.addPath(zigDir);
+    
+    // Set version output for downstream jobs
+    const resolvedVersion = await common.getVersion();
+    core.setOutput('zig-version', resolvedVersion);
+    core.info(`Zig ${resolvedVersion} installed and added to PATH`);
 
     // Direct Zig to use the global cache as every local cache, so that we get maximum benefit from the caching below.
     core.exportVariable('ZIG_LOCAL_CACHE_DIR', await common.getZigCachePath());
 
     if (core.getBooleanInput('use-cache')) {
       const cacheKey = await common.getCachePrefix();
+      const tarballName = await common.getTarballName();
+      
+      // Create a hierarchy of cache keys for optimal fallback
       const restoreKeys = [
-        cacheKey, // Exact match for this specific configuration
-        `setup-zig-cache-${(await common.getTarballName()).split('-').slice(0, -1).join('-')}`, // Version-agnostic fallback
-        'setup-zig-cache-' // Broad prefix fallback for any Zig cache
+        cacheKey, // Exact match: setup-zig-cache-zig-x86_64-linux-0.14.0-userkey
+        `setup-zig-cache-${tarballName}`, // Same version, no user key
+        `setup-zig-cache-${tarballName.split('-').slice(0, -1).join('-')}`, // Version-agnostic: setup-zig-cache-zig-x86_64-linux
+        'setup-zig-cache-zig-', // Any Zig cache for same arch/platform
+        'setup-zig-cache-' // Broad fallback for any Zig cache
       ];
 
+      const restoreStart = Date.now();
       const restoredKey = await cache.restoreCache([await common.getZigCachePath()], cacheKey, restoreKeys);
+      const restoreTime = Date.now() - restoreStart;
+      
       if (restoredKey) {
-        core.info(`Zig global cache restored from key: ${restoredKey}`);
+        core.info(`Zig global cache restored from key: ${restoredKey} (${restoreTime}ms)`);
+        if (restoredKey !== cacheKey) {
+          core.info(`Cache fallback used - exact key was: ${cacheKey}`);
+        }
+        
+        // Set output for cache hit analytics
+        core.setOutput('cache-hit', 'true');
+        core.setOutput('cache-key-used', restoredKey);
       } else {
-        core.info('No Zig global cache found, starting fresh');
+        core.info(`No Zig global cache found after ${restoreTime}ms, starting fresh`);
+        core.setOutput('cache-hit', 'false');
+        core.setOutput('cache-key-used', 'none');
       }
     }
   } catch (err) {
