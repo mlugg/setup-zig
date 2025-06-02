@@ -166,47 +166,6 @@ bare_url_can_parse (js_env_t *env, js_callback_info_t *info) {
 }
 
 static js_value_t *
-bare_url_tag (js_env_t *env, js_callback_info_t *info) {
-  int err;
-
-  size_t argc = 1;
-  js_value_t *argv[1];
-
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-
-  assert(argc == 1);
-
-  err = js_add_type_tag(env, argv[0], &bare_url__tag);
-  assert(err == 0);
-
-  return NULL;
-}
-
-static js_value_t *
-bare_url_is_tagged (js_env_t *env, js_callback_info_t *info) {
-  int err;
-
-  size_t argc = 1;
-  js_value_t *argv[1];
-
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-
-  assert(argc == 1);
-
-  bool is_url;
-  err = js_check_type_tag(env, argv[0], &bare_url__tag, &is_url);
-  assert(err == 0);
-
-  js_value_t *result;
-  err = js_get_boolean(env, is_url, &result);
-  assert(err == 0);
-
-  return result;
-}
-
-static js_value_t *
 bare_url_exports (js_env_t *env, js_value_t *exports) {
   int err;
 
@@ -221,8 +180,6 @@ bare_url_exports (js_env_t *env, js_value_t *exports) {
 
   V("parse", bare_url_parse)
   V("canParse", bare_url_can_parse)
-  V("tag", bare_url_tag)
-  V("isTagged", bare_url_is_tagged)
 #undef V
 
   return exports;

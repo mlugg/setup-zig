@@ -115,6 +115,10 @@ exports.module = function* (specifier, parentURL, opts = {}) {
       if (status) return status
     }
 
+    status = yield* exports.deferred(specifier, opts)
+
+    if (status) return status
+
     status = yield* exports.file(specifier, parentURL, false, opts)
 
     if (status === RESOLVED) return status
@@ -126,7 +130,7 @@ exports.module = function* (specifier, parentURL, opts = {}) {
 }
 
 exports.url = function* (url, parentURL, opts = {}) {
-  const { imports = null } = opts
+  const { imports = null, deferredProtocol = 'deferred:' } = opts
 
   let resolution
   try {
@@ -145,6 +149,12 @@ exports.url = function* (url, parentURL, opts = {}) {
     )
 
     if (status) return status
+  }
+
+  if (resolution.protocol === deferredProtocol) {
+    const specifier = resolution.pathname
+
+    return yield* exports.module(specifier, parentURL, opts)
   }
 
   if (resolution.protocol === 'node:') {
@@ -186,6 +196,18 @@ exports.preresolved = function* (specifier, resolutions, parentURL, opts = {}) {
   return UNRESOLVED
 }
 
+exports.deferred = function* (specifier, opts = {}) {
+  const { deferredProtocol = 'deferred:', defer = [] } = opts
+
+  if (defer.includes(specifier)) {
+    const resolved = yield { resolution: new URL(deferredProtocol + specifier) }
+
+    return resolved ? RESOLVED : YIELDED
+  }
+
+  return UNRESOLVED
+}
+
 exports.package = function* (packageSpecifier, parentURL, opts = {}) {
   const { builtins = [] } = opts
 
@@ -222,6 +244,10 @@ exports.package = function* (packageSpecifier, parentURL, opts = {}) {
   let status
 
   status = yield* exports.builtinTarget(packageSpecifier, null, builtins, opts)
+
+  if (status) return status
+
+  status = yield* exports.deferred(packageSpecifier, opts)
 
   if (status) return status
 

@@ -326,7 +326,13 @@ exports.directory = function* (dirname, version, parentURL, opts = {}) {
 
   if (info) {
     if (typeof info.name === 'string' && info.name !== '') {
-      name = info.name.replace(/\//g, '+').replace(/^@/, '')
+      if (info.name.includes('__')) {
+        throw errors.INVALID_PACKAGE_NAME(
+          `Package name '${info.name}' is invalid`
+        )
+      }
+
+      name = info.name.replace(/\//g, '__').replace(/^@/, '')
     } else {
       return UNRESOLVED
     }
