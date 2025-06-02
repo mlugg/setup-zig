@@ -196,16 +196,7 @@ async function getCachePrefix() {
   const userKey = core.getInput('cache-key');
 
   // Create a deterministic cache key that doesn't include runId
-  return `setup-zig-cache-${tarballName}${userKey ? `-${userKey}` : ''}-`;
-}
-
-async function getCachePrefixForJob() {
-  const tarballName = await getTarballName();
-  const jobName = github.context.job.replaceAll(/[^\w]/g, "_");
-  const userKey = core.getInput('cache-key');
-
-  // Job-specific prefix for fallback
-  return `setup-zig-cache-${jobName}-${tarballName}${userKey ? `-${userKey}` : ''}-`;
+  return `setup-zig-cache-${tarballName}${userKey ? `-${userKey}` : ''}`;
 }
 
 async function getZigCachePath() {
@@ -229,7 +220,6 @@ module.exports = {
   getTarballName,
   getTarballExt,
   getCachePrefix,
-  getCachePrefixForJob,
   getZigCachePath,
   getTarballCachePath,
 };

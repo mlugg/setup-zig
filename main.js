@@ -130,12 +130,12 @@ async function main() {
     if (core.getBooleanInput('use-cache')) {
       const cacheKey = await common.getCachePrefix();
       const restoreKeys = [
-        cacheKey.slice(0, -1), // Remove trailing dash for exact match
-        await common.getCachePrefixForJob(), // Job-specific prefix
-        'setup-zig-cache-' // Broad prefix fallback
+        cacheKey, // Exact match for this specific configuration
+        `setup-zig-cache-${(await common.getTarballName()).split('-').slice(0, -1).join('-')}`, // Version-agnostic fallback
+        'setup-zig-cache-' // Broad prefix fallback for any Zig cache
       ];
 
-      const restoredKey = await cache.restoreCache([await common.getZigCachePath()], cacheKey.slice(0, -1), restoreKeys);
+      const restoredKey = await cache.restoreCache([await common.getZigCachePath()], cacheKey, restoreKeys);
       if (restoredKey) {
         core.info(`Zig global cache restored from key: ${restoredKey}`);
       } else {

@@ -29,9 +29,7 @@ async function main() {
         }
 
         const cacheKey = await common.getCachePrefix();
-        // Remove trailing dash for the save operation
-        const saveKey = cacheKey.slice(0, -1);
-        await cache.saveCache([cachePath], saveKey);
+        await cache.saveCache([cachePath], cacheKey);
       }
     }
   } catch (err) {
