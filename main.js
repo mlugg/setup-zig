@@ -18,69 +18,77 @@ const CANONICAL = 'https://ziglang.org/builds';
 // This is an array of URLs.
 const MIRRORS = require('./mirrors.json').map((x) => x[0]);
 
-async function downloadFromMirror(mirror, tarball_filename) {
-  const tarball_path = await tc.downloadTool(`${mirror}/${tarball_filename}?source=github-actions`);
+async function downloadFromMirror(mirror, tarballFilename) {
+  const tarballPath = await tc.downloadTool(`${mirror}/${tarballFilename}?source=github-actions`);
 
-  const signature_response = await fetch(`${mirror}/${tarball_filename}.minisig?source=github-actions`);
-  const signature_data = Buffer.from(await signature_response.arrayBuffer());
+  const signatureResponse = await fetch(`${mirror}/${tarballFilename}.minisig?source=github-actions`);
+  const signatureData = Buffer.from(await signatureResponse.arrayBuffer());
 
-  const tarball_data = await fs.readFile(tarball_path);
+  const tarballData = await fs.readFile(tarballPath);
 
   const key = minisign.parseKey(MINISIGN_KEY);
-  const signature = minisign.parseSignature(signature_data);
-  if (!minisign.verifySignature(key, signature, tarball_data)) {
-    throw new Error(`signature verification failed for '${mirror}/${tarball_filename}'`);
+  const signature = minisign.parseSignature(signatureData);
+  if (!minisign.verifySignature(key, signature, tarballData)) {
+    throw new Error(`signature verification failed for '${mirror}/${tarballFilename}'`);
   }
 
   // Parse the trusted comment to validate the tarball name.
   // This prevents a malicious actor from trying to pass off one signed tarball as another.
   const match = /^timestamp:\d+\s+file:([^\s]+)\s+hashed$/.exec(signature.trusted_comment.toString());
-  if (match === null || match[1] !== tarball_filename) {
-    throw new Error(`filename verification failed for '${mirror}/${tarball_filename}'`);
+  if (match === null || match[1] !== tarballFilename) {
+    throw new Error(`filename verification failed for '${mirror}/${tarballFilename}'`);
   }
 
-  return tarball_path;
+  return tarballPath;
 }
 
-async function downloadTarball(tarball_filename) {
-  const preferred_mirror = core.getInput('mirror');
-  if (preferred_mirror.includes("://ziglang.org/") || preferred_mirror.startsWith("ziglang.org/")) {
+async function downloadTarball(tarballFilename) {
+  const preferredMirror = core.getInput('mirror');
+  if (preferredMirror.includes("://ziglang.org/") || preferredMirror.startsWith("ziglang.org/")) {
     throw new Error("'https://ziglang.org' cannot be used as mirror override; for more information see README.md");
   }
-  if (preferred_mirror) {
-    core.info(`Using mirror: ${preferred_mirror}`);
-    return await downloadFromMirror(preferred_mirror, tarball_filename);
+  if (preferredMirror) {
+    core.info(`Using mirror: ${preferredMirror}`);
+    return await downloadFromMirror(preferredMirror, tarballFilename);
   }
 
   // We will attempt all mirrors before making a last-ditch attempt to the official download.
   // To avoid hammering a single mirror, we first randomize the array.
-  const shuffled_mirrors = MIRRORS.map((m) => [m, Math.random()]).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
-  for (const mirror of shuffled_mirrors) {
+  const shuffledMirrors = MIRRORS.map((m) => [m, Math.random()]).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
+  for (const mirror of shuffledMirrors) {
     core.info(`Attempting mirror: ${mirror}`);
     try {
-      return await downloadFromMirror(mirror, tarball_filename);
+      return await downloadFromMirror(mirror, tarballFilename);
     } catch (e) {
       core.info(`Mirror failed with error: ${e}`);
       // continue loop to next mirror
     }
   }
   core.info(`Attempting official: ${CANONICAL}`);
-  return await downloadFromMirror(CANONICAL, tarball_filename);
+  return await downloadFromMirror(CANONICAL, tarballFilename);
 }
 
-async function retrieveTarball(tarball_name, tarball_ext) {
-  const cache_key = `setup-zig-tarball-${tarball_name}`;
-  const tarball_cache_path = await common.getTarballCachePath();
+async function retrieveTarball(tarballName, tarballExt) {
+  const cacheKey = `setup-zig-tarball-${tarballName}`;
+  const tarballCachePath = await common.getTarballCachePath();
 
-  if (await cache.restoreCache([tarball_cache_path], cache_key)) {
-    return tarball_cache_path;
+  // Try to restore the cache with prefix fallback
+  const restoreKeys = [
+    `setup-zig-tarball-${tarballName.split('-').slice(0, -1).join('-')}-`, // Version-agnostic prefix
+    'setup-zig-tarball-' // Broad prefix fallback
+  ];
+
+  const restoredKey = await cache.restoreCache([tarballCachePath], cacheKey, restoreKeys);
+  if (restoredKey) {
+    core.info(`Zig tarball cache restored from key: ${restoredKey}`);
+    return tarballCachePath;
   }
 
   core.info(`Cache miss. Fetching Zig ${await common.getVersion()}`);
-  const downloaded_path = await downloadTarball(`${tarball_name}${tarball_ext}`);
-  await fs.copyFile(downloaded_path, tarball_cache_path)
-  await cache.saveCache([tarball_cache_path], cache_key);
-  return tarball_cache_path;
+  const downloadedPath = await downloadTarball(`${tarballName}${tarballExt}`);
+  await fs.copyFile(downloadedPath, tarballCachePath)
+  await cache.saveCache([tarballCachePath], cacheKey);
+  return tarballCachePath;
 }
 
 async function main() {
@@ -92,35 +100,47 @@ async function main() {
     //   less efficient, but still much preferable to fetching Zig from a mirror. We have this
     //   dependency anyway for caching the global Zig cache.
 
-    let zig_dir = tc.find('zig', await common.getVersion());
-    if (!zig_dir) {
-      const tarball_name = await common.getTarballName();
-      const tarball_ext = await common.getTarballExt();
+    let zigDir = tc.find('zig', await common.getVersion());
+    if (!zigDir) {
+      const tarballName = await common.getTarballName();
+      const tarballExt = await common.getTarballExt();
 
-      core.info(`Fetching ${tarball_name}${tarball_ext}`);
-      const fetch_start = Date.now();
-      const tarball_path = await retrieveTarball(tarball_name, tarball_ext);
-      core.info(`fetch took ${Date.now() - fetch_start} ms`);
+      core.info(`Fetching ${tarballName}${tarballExt}`);
+      const fetchStart = Date.now();
+      const tarballPath = await retrieveTarball(tarballName, tarballExt);
+      core.info(`fetch took ${Date.now() - fetchStart} ms`);
 
-      core.info(`Extracting tarball ${tarball_name}${tarball_ext}`);
+      core.info(`Extracting tarball ${tarballName}${tarballExt}`);
 
-      const extract_start = Date.now();
-      const zig_parent_dir = tarball_ext === '.zip' ?
-        await tc.extractZip(tarball_path) :
-        await tc.extractTar(tarball_path, null, 'xJ'); // J for xz
-      core.info(`extract took ${Date.now() - extract_start} ms`);
+      const extractStart = Date.now();
+      const zigParentDir = tarballExt === '.zip' ?
+        await tc.extractZip(tarballPath) :
+        await tc.extractTar(tarballPath, null, 'xJ'); // J for xz
+      core.info(`extract took ${Date.now() - extractStart} ms`);
 
-      const zig_inner_dir = path.join(zig_parent_dir, tarball_name);
-      zig_dir = await tc.cacheDir(zig_inner_dir, 'zig', await common.getVersion());
+      const zigInnerDir = path.join(zigParentDir, tarballName);
+      zigDir = await tc.cacheDir(zigInnerDir, 'zig', await common.getVersion());
     }
 
-    core.addPath(zig_dir);
+    core.addPath(zigDir);
 
     // Direct Zig to use the global cache as every local cache, so that we get maximum benefit from the caching below.
     core.exportVariable('ZIG_LOCAL_CACHE_DIR', await common.getZigCachePath());
 
     if (core.getBooleanInput('use-cache')) {
-      await cache.restoreCache([await common.getZigCachePath()], await common.getCachePrefix());
+      const cacheKey = await common.getCachePrefix();
+      const restoreKeys = [
+        cacheKey.slice(0, -1), // Remove trailing dash for exact match
+        await common.getCachePrefixForJob(), // Job-specific prefix
+        'setup-zig-cache-' // Broad prefix fallback
+      ];
+
+      const restoredKey = await cache.restoreCache([await common.getZigCachePath()], cacheKey.slice(0, -1), restoreKeys);
+      if (restoredKey) {
+        core.info(`Zig global cache restored from key: ${restoredKey}`);
+      } else {
+        core.info('No Zig global cache found, starting fresh');
+      }
     }
   } catch (err) {
     core.setFailed(err.message);

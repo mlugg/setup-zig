@@ -14,10 +14,10 @@ const CACHE_PREFIX = "setup-zig-global-cache-";
 const MACH_ZIG_VERSION_REGEX = /\.\s*mach_zig_version\s*=\s*"(.*?)"/;
 const MINIMUM_ZIG_VERSION_REGEX = /\.\s*minimum_zig_version\s*=\s*"(.*?)"/;
 
-let _cached_version = null;
+let cachedVersion = null;
 async function getVersion() {
-  if (_cached_version != null) {
-    return _cached_version;
+  if (cachedVersion != null) {
+    return cachedVersion;
   }
 
   let raw = core.getInput('version');
@@ -28,15 +28,15 @@ async function getVersion() {
       // Look for `mach_zig_version` first
       let match = MACH_ZIG_VERSION_REGEX.exec(zon);
       if (match !== null) {
-        _cached_version = await getMachVersion(match[1]);
-        return _cached_version;
+        cachedVersion = await getMachVersion(match[1]);
+        return cachedVersion;
       }
 
       // Else, look for `mach_zig_version` first
       match = MINIMUM_ZIG_VERSION_REGEX.exec(zon);
       if (match !== null) {
-        _cached_version = match[1];
-        return _cached_version;
+        cachedVersion = match[1];
+        return cachedVersion;
       }
 
       core.info('Failed to find `mach_zig_version` or `minimum_zig_version` in build.zig.zon (using latest)');
@@ -48,16 +48,16 @@ async function getVersion() {
   }
 
   if (raw === 'master') {
-    _cached_version = await getMasterVersion();
+    cachedVersion = await getMasterVersion();
   } else if (raw === 'latest') {
-    _cached_version = await getLatestVersion();
+    cachedVersion = await getLatestVersion();
   } else if (raw.includes("mach")) {
-    _cached_version = await getMachVersion(raw);
+    cachedVersion = await getMachVersion(raw);
   } else {
-    _cached_version = raw;
+    cachedVersion = raw;
   }
 
-  return _cached_version;
+  return cachedVersion;
 }
 
 async function getMachVersion(raw) {
@@ -77,30 +77,30 @@ async function getLatestVersion() {
   const resp = await fetch(VERSIONS_JSON);
   const versions = await resp.json();
   let latest = null;
-  let latest_major;
-  let latest_minor;
-  let latest_patch;
+  let latestMajor;
+  let latestMinor;
+  let latestPatch;
   for (const version in versions) {
     if (version === 'master') continue;
-    const [major_str, minor_str, patch_str] = version.split('.')
-    const major = Number(major_str);
-    const minor = Number(minor_str);
-    const patch = Number(patch_str);
+    const [majorStr, minorStr, patchStr] = version.split('.')
+    const major = Number(majorStr);
+    const minor = Number(minorStr);
+    const patch = Number(patchStr);
     if (latest === null) {
       latest = version;
-      latest_major = major;
-      latest_minor = minor;
-      latest_patch = patch;
+      latestMajor = major;
+      latestMinor = minor;
+      latestPatch = patch;
       continue;
     }
-    if (major > latest_major ||
-        (major == latest_major && minor > latest_minor) ||
-        (major == latest_major && minor == latest_minor && patch > latest_patch))
+    if (major > latestMajor ||
+        (major == latestMajor && minor > latestMinor) ||
+        (major == latestMajor && minor == latestMinor && patch > latestPatch))
     {
       latest = version;
-      latest_major = major;
-      latest_minor = minor;
-      latest_patch = patch;
+      latestMajor = major;
+      latestMinor = minor;
+      latestPatch = patch;
     }
   }
   return latest;
@@ -192,23 +192,32 @@ async function getTarballExt() {
 }
 
 async function getCachePrefix() {
-  const tarball_name = await getTarballName();
-  const job_name = github.context.job.replaceAll(/[^\w]/g, "_");
-  const user_key = core.getInput('cache-key');
+  const tarballName = await getTarballName();
+  const userKey = core.getInput('cache-key');
 
-  return `setup-zig-cache-${job_name}-${tarball_name}-${user_key}-`;
+  // Create a deterministic cache key that doesn't include runId
+  return `setup-zig-cache-${tarballName}${userKey ? `-${userKey}` : ''}-`;
+}
+
+async function getCachePrefixForJob() {
+  const tarballName = await getTarballName();
+  const jobName = github.context.job.replaceAll(/[^\w]/g, "_");
+  const userKey = core.getInput('cache-key');
+
+  // Job-specific prefix for fallback
+  return `setup-zig-cache-${jobName}-${tarballName}${userKey ? `-${userKey}` : ''}-`;
 }
 
 async function getZigCachePath() {
-  let env_output = '';
+  let envOutput = '';
   await exec.exec('zig', ['env'], {
     listeners: {
       stdout: (data) => {
-        env_output += data.toString();
+        envOutput += data.toString();
       },
     },
   });
-  return JSON.parse(env_output)['global_cache_dir'];
+  return JSON.parse(envOutput)['global_cache_dir'];
 }
 
 async function getTarballCachePath() {
@@ -220,6 +229,7 @@ module.exports = {
   getTarballName,
   getTarballExt,
   getCachePrefix,
+  getCachePrefixForJob,
   getZigCachePath,
   getTarballCachePath,
 };

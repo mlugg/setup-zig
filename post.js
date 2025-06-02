@@ -8,29 +8,30 @@ const common = require('./common');
 async function main() {
   try {
     if (core.getBooleanInput('use-cache')) {
-      const cache_path = await common.getZigCachePath();
+      const cachePath = await common.getZigCachePath();
 
       let accessible = true;
       try {
-        await fs.access(cache_path, fs.constants.R_OK);
+        await fs.access(cachePath, fs.constants.R_OK);
       } catch {
         accessible = false;
       }
 
       if (accessible) {
-        const size = await totalSize(cache_path);
-        const size_limit = core.getInput('cache-size-limit') * 1024 * 1024; // MiB -> bytes
-        if (size_limit !== 0 && size > size_limit) {
-          core.info(`Cache directory reached ${size} bytes, exceeding limit of ${size_limit} bytes; clearing cache`);
+        const size = await totalSize(cachePath);
+        const sizeLimit = core.getInput('cache-size-limit') * 1024 * 1024; // MiB -> bytes
+        if (sizeLimit !== 0 && size > sizeLimit) {
+          core.info(`Cache directory reached ${size} bytes, exceeding limit of ${sizeLimit} bytes; clearing cache`);
           // We want to clear the cache and start over. Unfortunately, we can't programmatically
           // remove the old cache entries, so we instead want to save an empty cache directory.
           // To do this, delete all the contents of the cache directory before saving the cache.
-          await rmDirContents(cache_path);
+          await rmDirContents(cachePath);
         }
 
-        const prefix = await common.getCachePrefix();
-        const name = prefix + github.context.runId;
-        await cache.saveCache([cache_path], name);
+        const cacheKey = await common.getCachePrefix();
+        // Remove trailing dash for the save operation
+        const saveKey = cacheKey.slice(0, -1);
+        await cache.saveCache([cachePath], saveKey);
       }
     }
   } catch (err) {
