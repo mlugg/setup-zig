@@ -68,15 +68,14 @@ async function downloadTarball(tarballFilename) {
   return await downloadFromMirror(CANONICAL, tarballFilename);
 }
 
-async function retrieveTarball(tarballName, tarballExt) {
+async function retrieveTarball(tarballName, tarballExt, summaryData = {}) {
   const cacheKey = `setup-zig-tarball-${tarballName}`;
   const tarballCachePath = await common.getTarballCachePath();
 
-  // Try to restore the cache with prefix fallback
-  const restoreKeys = [
-    `setup-zig-tarball-${tarballName.split('-').slice(0, -1).join('-')}`, // Version-agnostic prefix
-    'setup-zig-tarball-' // Broad prefix fallback
-  ];
+  // Cache restore strategy: Only reuse tarball caches from the exact same tarball name
+  // Cross-version tarball reuse is unsafe as different versions have different content
+  // No fallback keys - tarballs are version-specific and should be exact matches only
+  const restoreKeys = []; // No restore keys - exact match only
 
   try {
     const restoreStart = Date.now();
@@ -85,6 +84,8 @@ async function retrieveTarball(tarballName, tarballExt) {
 
     if (restoredKey) {
       core.info(`Zig tarball cache restored from key: ${restoredKey} (${restoreTime}ms)`);
+      summaryData.tarballCached = true;
+      summaryData.timings.tarballRestore = restoreTime;
       return tarballCachePath;
     }
   } catch (error) {
@@ -100,6 +101,7 @@ async function retrieveTarball(tarballName, tarballExt) {
     await cache.saveCache([tarballCachePath], cacheKey);
     const saveTime = Date.now() - saveStart;
     core.info(`Tarball cached with key: ${cacheKey} (${saveTime}ms)`);
+    summaryData.timings.tarballSave = saveTime;
   } catch (error) {
     core.warning(`Failed to save tarball cache: ${error.message}`);
   }
@@ -107,8 +109,107 @@ async function retrieveTarball(tarballName, tarballExt) {
   return tarballCachePath;
 }
 
+async function generateJobSummary(summaryData) {
+  try {
+    const totalTime = Date.now() - summaryData.installationTime;
+
+    // Create summary header
+    await core.summary
+      .addHeading('🔧 Setup Zig Compiler', 2)
+      .addRaw('\n')
+      .write();
+
+    // Installation info section
+    await core.summary
+      .addHeading('📦 Installation Details', 3)
+      .addTable([
+        ['Property', 'Value'],
+        ['Zig Version', `\`${summaryData.zigVersion}\``],
+        ['Platform', `\`${summaryData.platform}\``],
+        ['Total Setup Time', `${totalTime}ms`]
+      ])
+      .addRaw('\n')
+      .write();
+
+    // Cache performance section
+    if (summaryData.cacheEnabled) {
+      const cacheIcon = summaryData.zigCacheHit ? '✅' : '❌';
+      const cacheStatus = summaryData.zigCacheHit ? 'HIT' : 'MISS';
+      const tarballIcon = summaryData.tarballCached ? '✅' : '❌';
+      const tarballStatus = summaryData.tarballCached ? 'HIT' : 'MISS';
+
+      await core.summary
+        .addHeading('🚀 Cache Performance', 3)
+        .addTable([
+          ['Cache Type', 'Status', 'Key', 'Time (ms)'],
+          ['Zig Global Cache', `${cacheIcon} ${cacheStatus}`, `\`${summaryData.zigCacheKey}\``, `${summaryData.timings.cacheRestore || 'N/A'}`],
+          ['Tarball Cache', `${tarballIcon} ${tarballStatus}`, summaryData.tarballCached ? '✅ Restored' : '❌ Downloaded', `${summaryData.timings.tarballRestore || summaryData.timings.tarballSave || 'N/A'}`]
+        ])
+        .addRaw('\n')
+        .write();
+    } else {
+      await core.summary
+        .addHeading('🚀 Cache Performance', 3)
+        .addRaw('⚠️ Caching is disabled (`use-cache: false`)\n\n')
+        .write();
+    }
+
+    // Performance breakdown
+    if (Object.keys(summaryData.timings).length > 0) {
+      const timingRows = [['Operation', 'Time (ms)']];
+
+      if (summaryData.timings.totalFetch) {
+        timingRows.push(['Total Fetch/Extract', `${summaryData.timings.totalFetch}`]);
+      }
+      if (summaryData.timings.extract) {
+        timingRows.push(['Archive Extraction', `${summaryData.timings.extract}`]);
+      }
+      if (summaryData.timings.cacheRestore) {
+        timingRows.push(['Cache Restore', `${summaryData.timings.cacheRestore}`]);
+      }
+      if (summaryData.timings.tarballRestore) {
+        timingRows.push(['Tarball Cache Restore', `${summaryData.timings.tarballRestore}`]);
+      }
+      if (summaryData.timings.tarballSave) {
+        timingRows.push(['Tarball Cache Save', `${summaryData.timings.tarballSave}`]);
+      }
+
+      if (timingRows.length > 1) {
+        await core.summary
+          .addHeading('⏱️ Performance Breakdown', 3)
+          .addTable(timingRows)
+          .addRaw('\n')
+          .write();
+      }
+    }
+
+    // Tips section
+    await core.summary
+      .addHeading('💡 Tips', 3)
+      .addRaw('- Cache hits significantly speed up subsequent runs\n')
+      .addRaw('- Use `cache-key` input for matrix builds to ensure proper cache isolation\n')
+      .addRaw('- Consider adjusting `cache-size-limit` if you have large Zig projects\n\n')
+      .write();
+
+  } catch (error) {
+    core.warning(`Failed to generate job summary: ${error.message}`);
+  }
+}
+
 async function main() {
   try {
+    // Initialize job summary tracking
+    const summaryData = {
+      zigVersion: await common.getVersion(),
+      platform: `${os.platform()}-${os.arch()}`,
+      installationTime: Date.now(),
+      cacheEnabled: core.getBooleanInput('use-cache'),
+      tarballCached: false,
+      zigCacheHit: false,
+      zigCacheKey: 'none',
+      timings: {}
+    };
+
     // We will check whether Zig is stored in the cache. We use two separate caches.
     // * 'tool-cache' caches the final extracted directory if the same Zig build is used multiple
     //   times by one job. We have this dependency anyway for archive extraction.
@@ -123,8 +224,9 @@ async function main() {
 
       core.info(`Fetching ${tarballName}${tarballExt}`);
       const fetchStart = Date.now();
-      const tarballPath = await retrieveTarball(tarballName, tarballExt);
-      core.info(`fetch took ${Date.now() - fetchStart} ms`);
+      const tarballPath = await retrieveTarball(tarballName, tarballExt, summaryData);
+      summaryData.timings.totalFetch = Date.now() - fetchStart;
+      core.info(`fetch took ${summaryData.timings.totalFetch} ms`);
 
       core.info(`Extracting tarball ${tarballName}${tarballExt}`);
 
@@ -132,7 +234,8 @@ async function main() {
       const zigParentDir = tarballExt === '.zip' ?
         await tc.extractZip(tarballPath) :
         await tc.extractTar(tarballPath, null, 'xJ'); // J for xz
-      core.info(`extract took ${Date.now() - extractStart} ms`);
+      summaryData.timings.extract = Date.now() - extractStart;
+      core.info(`extract took ${summaryData.timings.extract} ms`);
 
       const zigInnerDir = path.join(zigParentDir, tarballName);
       zigDir = await tc.cacheDir(zigInnerDir, 'zig', await common.getVersion());
@@ -141,7 +244,7 @@ async function main() {
     core.addPath(zigDir);
 
     // Set version output for downstream jobs
-    const resolvedVersion = await common.getVersion();
+    const resolvedVersion = summaryData.zigVersion;
     core.setOutput('zig-version', resolvedVersion);
     core.info(`Zig ${resolvedVersion} installed and added to PATH`);
 
@@ -175,17 +278,34 @@ async function main() {
           // Set output for cache hit analytics
           core.setOutput('cache-hit', 'true');
           core.setOutput('cache-key-used', restoredKey);
+
+          // Update summary data
+          summaryData.zigCacheHit = true;
+          summaryData.zigCacheKey = restoredKey;
+          summaryData.timings.cacheRestore = restoreTime;
         } else {
           core.info(`No Zig global cache found after ${restoreTime}ms, starting fresh`);
           core.setOutput('cache-hit', 'false');
           core.setOutput('cache-key-used', 'none');
+
+          // Update summary data
+          summaryData.zigCacheHit = false;
+          summaryData.zigCacheKey = 'none';
+          summaryData.timings.cacheRestore = restoreTime;
         }
       } catch (error) {
         core.warning(`Cache restore failed: ${error.message}. Continuing without cache.`);
         core.setOutput('cache-hit', 'false');
         core.setOutput('cache-key-used', 'error');
+
+        // Update summary data
+        summaryData.zigCacheHit = false;
+        summaryData.zigCacheKey = 'error';
       }
     }
+
+    // Generate job summary
+    await generateJobSummary(summaryData);
   } catch (err) {
     core.setFailed(err.message);
   }
