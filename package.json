@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "ncc build main.js -o dist --license licenses.txt && ncc build post.js -o dist/post --license licenses.txt",
+    "package": "npm run build"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +17,10 @@
     "@actions/exec": "^1.1.1",
     "@actions/github": "^6.0.0",
     "@actions/tool-cache": "^2.0.2",
-    "sodium-native": "^4.3.3"
+    "@noble/ed25519": "^2.2.3",
+    "@noble/hashes": "^1.8.0"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.3"
   }
 }

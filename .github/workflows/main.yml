@@ -1,0 +1,15 @@
+name: Zig CI
+
+on:
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Build and Test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./ # Use the action in the current repository
+        with:
+          version: '0.14.1' # or your desired Zig version
+      - run: zig build test

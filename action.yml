@@ -21,6 +21,6 @@ inputs:
     required: true
     default: 2048
 runs:
-  using: 'node20'
-  main: 'main.js'
-  post: 'post.js'
+  using: node20
+  main: dist/index.js
+  post: dist/post/index.js
