@@ -4,7 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "for test in test/*.js; do echo \"Running $test...\"; node \"$test\"; echo; done",
+    "test:basic": "node test/basic-validation.js",
+    "test:cache": "node test/cache-key-analysis.js",
+    "test:summary": "node test/job-summary-test.js",
+    "test:safety": "node test/tarball-cache-safety.js"
   },
   "keywords": [],
   "author": "",

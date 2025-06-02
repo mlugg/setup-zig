@@ -1,1 +1,5 @@
 check-mirrors-summary.md
+
+# Test outputs
+test/*.log
+test/*.tmp
