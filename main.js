@@ -155,13 +155,10 @@ async function main() {
       // Log cache key information for debugging
       core.info(`Cache configuration: key="${cacheKey}", tarball="${tarballName}"`);
 
-      // Create a hierarchy of cache keys for optimal fallback
-      // Note: The primary key is passed separately, restoreKeys contains only fallbacks
+      // Cache restore strategy: Only reuse caches from the exact same Zig version
+      // Cross-version cache reuse is unsafe due to compiler-specific build artifacts
       const restoreKeys = [
-        `setup-zig-cache-${tarballName}`, // Same version, no user key
-        `setup-zig-cache-${tarballName.split('-').slice(0, -1).join('-')}`, // Version-agnostic: setup-zig-cache-zig-x86_64-linux
-        'setup-zig-cache-zig-', // Any Zig cache for same arch/platform
-        'setup-zig-cache-' // Broad fallback for any Zig cache
+        `setup-zig-cache-${tarballName}`, // Same version, no user key (safe fallback)
       ];
 
       try {
