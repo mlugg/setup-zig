@@ -1,4 +1,5 @@
-const sodium = require('sodium-native');
+const { verify } = require('@noble/ed25519');
+const { blake2b } = require('@noble/hashes/blake2b');
 
 // Parse a minisign key represented as a base64 string.
 // Throws exceptions on invalid keys.
@@ -8,7 +9,7 @@ function parseKey(key_str) {
   const id = key_info.subarray(2, 10);
   const key = key_info.subarray(10);
 
-  if (key.byteLength !== sodium.crypto_sign_PUBLICKEYBYTES) {
+  if (key.byteLength !== 32) { // ED25519 public key is 32 bytes
     throw new Error('invalid public key given');
   }
 
@@ -77,28 +78,37 @@ function parseSignature(sig_buf) {
 // Given a parsed key, parsed signature file, and raw file content, verifies the signature,
 // including the global signature (hence validating the trusted comment). Does not throw.
 // Returns 'true' if the signature is valid for this file, 'false' otherwise.
-function verifySignature(pubkey, signature, file_content) {
+async function verifySignature(pubkey, signature, file_content) {
   if (!signature.key_id.equals(pubkey.id)) {
     return false;
   }
 
   let signed_content;
   if (signature.algorithm.equals(Buffer.from('ED'))) {
-    signed_content = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX);
-    sodium.crypto_generichash(signed_content, file_content);
+    // Use BLAKE2b for hashing (same as libsodium's crypto_generichash)
+    signed_content = blake2b(file_content, { dkLen: 64 }); // 64 bytes = crypto_generichash_BYTES_MAX
   } else {
     signed_content = file_content;
   }
-  if (!sodium.crypto_sign_verify_detached(signature.signature, signed_content, pubkey.key)) {
+
+  try {
+    // Verify the main signature
+    const isValidSignature = await verify(signature.signature, signed_content, pubkey.key);
+    if (!isValidSignature) {
+      return false;
+    }
+
+    // Verify the global signature
+    const global_signed_content = Buffer.concat([signature.signature, signature.trusted_comment]);
+    const isValidGlobalSignature = await verify(signature.global_signature, global_signed_content, pubkey.key);
+    if (!isValidGlobalSignature) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
     return false;
   }
-
-  const global_signed_content = Buffer.concat([signature.signature, signature.trusted_comment]);
-  if (!sodium.crypto_sign_verify_detached(signature.global_signature, global_signed_content, pubkey.key)) {
-    return false;
-  }
-
-  return true;
 }
 
 module.exports = {
