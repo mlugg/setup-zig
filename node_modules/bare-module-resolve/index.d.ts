@@ -23,6 +23,8 @@ interface ResolveOptions {
   builtinProtocol?: string
   builtins?: Builtins
   conditions?: Conditions
+  defer?: string[]
+  deferredProtocol?: string
   engines?: Engines
   extensions?: string[]
   imports?: ImportsMap

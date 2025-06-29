@@ -62,6 +62,11 @@ options = {
   builtins: [],
   // The protocol to use for resolved builtin module specifiers.
   builtinProtocol: 'builtin:',
+  // A list of module specifiers whose resolution should be deferred. If matched,
+  // the protocol of the resolved URL will be `deferredProtocol`.
+  defer: [],
+  // The protocol to use for resolved deferred module specifiers.
+  deferredProtocol: 'deferred:',
   // The supported import conditions. "default" is always recognized.
   conditions: [],
   // An array reference which will contain the matched conditions when yielding
@@ -153,8 +158,9 @@ Options are the same as `resolve()` for all functions.
 5.  If `specifier` equals `.` or `..`, or if `specifier` starts with `/`, `\`, `./`, `.\`, `../`, or `..\`:
     1.  If `options.imports` is set:
         1.  If `packageImportsExports(specifier, options.imports, parentURL, true, options)` yields, return.
-    2.  If `file(specifier, parentURL, false, options)` resolves, return.
-    3.  Return `directory(specifier, parentURL, options)`.
+    2.  If `deferred(specifier, options)` yields, return.
+    3.  If `file(specifier, parentURL, false, options)` resolves, return.
+    4.  Return `directory(specifier, parentURL, options)`.
 6.  Return `package(specifier, parentURL, options)`.
 
 #### `const generator = resolve.url(url, parentURL[, options])`
@@ -162,17 +168,25 @@ Options are the same as `resolve()` for all functions.
 1.  If `url` is not a valid URL, return.
 2.  If `options.imports` is set:
     1.  If `packageImportsExports(url.href, options.imports, parentURL, true, options)` yields, return.
-3.  If `url.protocol` equals `node:`:
+3.  If `url.protocol` equals `options.deferredProtocol`:
+    1.  Let `specifier` be `url.pathname`.
+    2.  Return `module(specifier, parentURL, options)`.
+4.  If `url.protocol` equals `node:`:
     1.  Let `specifier` be `url.pathname`.
     2.  If `specifier` equals `.` or `..`, or if `specifier` starts with `/`, `\`, `./`, `.\`, `../`, or `..\`, throw.
     3.  Return `package(specifier, parentURL, options)`.
-4.  Yield `url`.
+5.  Yield `url`.
 
 #### `const generator = resolve.preresolved(specifier, resolutions, parentURL[, options])`
 
 1.  Let `imports` be `resolutions[parentURL]`.
 2.  If `imports` is a non-`null` object:
     1.  Return `packageImportsExports(specifier, imports, parentURL, true, options)`.
+
+#### `const generator = resolve.deferred(specifier[, options])`
+
+1.  If `options.defer` includes `specifier`:
+    1.  Yield `options.deferredProtocol` concatenated with `specifier` and return.
 
 #### `const generator = resolve.package(packageSpecifier, parentURL[, options])`
 
@@ -185,9 +199,10 @@ Options are the same as `resolve()` for all functions.
     2.  Set `packageName` to the substring of `packageSpecifier` until the second `/` or the end of the string.
 5.  If `packageName` starts with `.` or includes `\` or `%`, throw.
 6.  If `builtinTarget(packageSpecifier, null, options.builtins, options)` yields, return.
-7.  Let `packageSubpath` be `.` concatenated with the substring of `packageSpecifier` from the position at the length of `packageName`.
-8.  If `packageSelf(packageName, packageSubpath, parentURL, options)` yields, return.
-9.  Repeat:
+7.  If `deferred(packageSpecifier, options)` yields, return.
+8.  Let `packageSubpath` be `.` concatenated with the substring of `packageSpecifier` from the position at the length of `packageName`.
+9.  If `packageSelf(packageName, packageSubpath, parentURL, options)` yields, return.
+10. Repeat:
     1.  Let `packageURL` be the resolution of `node_modules/` concatenated with `packageName` and `/` relative to `parentURL`.
     2.  Set `parentURL` to the substring of `parentURL` until the last `/`.
     3.  Let `info` be the result of yielding the resolution of `package.json` relative to `packageURL`.

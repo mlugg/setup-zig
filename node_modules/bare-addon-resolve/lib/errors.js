@@ -19,4 +19,12 @@ module.exports = class AddonResolveError extends Error {
       AddonResolveError.INVALID_ADDON_SPECIFIER
     )
   }
+
+  static INVALID_PACKAGE_NAME(msg) {
+    return new AddonResolveError(
+      msg,
+      'INVALID_PACKAGE_NAME',
+      AddonResolveError.INVALID_PACKAGE_NAME
+    )
+  }
 }
