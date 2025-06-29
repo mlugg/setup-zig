@@ -18,6 +18,7 @@ async function main() {
       }
 
       if (accessible) {
+        core.info('Checking cache size');
         const size = await totalSize(cache_path);
         const size_limit = core.getInput('cache-size-limit') * 1024 * 1024; // MiB -> bytes
         if (size_limit !== 0 && size > size_limit) {
@@ -26,10 +27,13 @@ async function main() {
           // remove the old cache entries, so we instead want to save an empty cache directory.
           // To do this, delete all the contents of the cache directory before saving the cache.
           await rmDirContents(cache_path);
+        } else {
+          core.info(`Cache directory is ${size} bytes, below limit of ${size_limit} bytes; keeping intact`);
         }
 
         const prefix = await common.getCachePrefix();
         const name = prefix + github.context.runId;
+        core.info('Saving Zig cache');
         await cache.saveCache([cache_path], name);
       }
     }

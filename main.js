@@ -91,16 +91,41 @@ async function main() {
     // * 'cache' only caches the unextracted archive, but it does so across runs. It's a little
     //   less efficient, but still much preferable to fetching Zig from a mirror. We have this
     //   dependency anyway for caching the global Zig cache.
+    //
+    // Unfortunately, tool-cache can lead to serious performance problems on GitHub-hosted Actions
+    // runners -- or their Windows ones at least, because the tool cache is stored on a slow drive.
+    // There are even hacky workarounds for this in official Actions:
+    //
+    // https://github.com/actions/setup-go/blob/d35c59abb061a4a6fb18e82ac0862c26744d6ab5/src/installer.ts#L174
+    //
+    // Since tool-cache is only really useful on self-hosted runners, let's just disable it by
+    // default on GitHub-hosted runners, and hence execute Zig straight out of its extracted dir.
+    let use_tool_cache = core.getInput('use-tool-cache');
+    if (use_tool_cache === 'true') {
+      use_tool_cache = true;
+    } else if (use_tool_cache === 'false') {
+      use_tool_cache = false;
+    } else if (use_tool_cache === '') {
+      use_tool_cache = process.env['RUNNER_ENVIRONMENT'] !== 'github-hosted';
+    } else {
+      throw new Error("Invalid 'use-tool-cache' value. Valid values: 'true', 'false'");
+    }
+    core.info(`Using tool-cache: ${use_tool_cache}`);
 
-    let zig_dir = tc.find('zig', await common.getVersion());
-    if (!zig_dir) {
+    let zig_dir;
+    if (use_tool_cache) {
+      zig_dir = tc.find('zig', await common.getVersion());
+    }
+    if (zig_dir) {
+      core.info('Using cached Zig installation from tool-cache');
+    } else {
       const tarball_name = await common.getTarballName();
       const tarball_ext = await common.getTarballExt();
 
       core.info(`Fetching ${tarball_name}${tarball_ext}`);
       const fetch_start = Date.now();
       const tarball_path = await retrieveTarball(tarball_name, tarball_ext);
-      core.info(`fetch took ${Date.now() - fetch_start} ms`);
+      core.info(`Fetch took ${Date.now() - fetch_start} ms`);
 
       core.info(`Extracting tarball ${tarball_name}${tarball_ext}`);
 
@@ -108,10 +133,15 @@ async function main() {
       const zig_parent_dir = tarball_ext === '.zip' ?
         await tc.extractZip(tarball_path) :
         await tc.extractTar(tarball_path, null, 'xJ'); // J for xz
-      core.info(`extract took ${Date.now() - extract_start} ms`);
+      core.info(`Extract took ${Date.now() - extract_start} ms`);
 
       const zig_inner_dir = path.join(zig_parent_dir, tarball_name);
-      zig_dir = await tc.cacheDir(zig_inner_dir, 'zig', await common.getVersion());
+      if (use_tool_cache) {
+        core.info('Copying Zig installation to tool-cache');
+        zig_dir = await tc.cacheDir(zig_inner_dir, 'zig', await common.getVersion());
+      } else {
+        zig_dir = zig_inner_dir;
+      }
     }
 
     core.addPath(zig_dir);
@@ -120,6 +150,7 @@ async function main() {
     core.exportVariable('ZIG_LOCAL_CACHE_DIR', await common.getZigCachePath());
 
     if (core.getBooleanInput('use-cache')) {
+      core.info('Attempting restore of Zig cache');
       await cache.restoreCache([await common.getZigCachePath()], await common.getCachePrefix());
     }
   } catch (err) {

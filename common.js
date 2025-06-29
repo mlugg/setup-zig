@@ -32,7 +32,7 @@ async function getVersion() {
         return _cached_version;
       }
 
-      // Else, look for `mach_zig_version` first
+      // Else, look for `minimum_zig_version`
       match = MINIMUM_ZIG_VERSION_REGEX.exec(zon);
       if (match !== null) {
         _cached_version = match[1];
