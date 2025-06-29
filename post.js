@@ -32,7 +32,7 @@ async function main() {
         }
 
         const prefix = await common.getCachePrefix();
-        const name = prefix + github.context.runId;
+        const name = `${prefix}${github.context.runId}-${github.context.runAttempt}`;
         core.info('Saving Zig cache');
         await cache.saveCache([cache_path], name);
       } else {
