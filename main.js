@@ -13,10 +13,8 @@ const MINISIGN_KEY = 'RWSGOq2NVecA2UPNdBUZykf1CCb147pkmdtYxgb3Ti+JO/wCYvhbAb/U';
 // The base URL of the official builds of Zig. This is only used as a fallback, if all mirrors fail.
 const CANONICAL = 'https://ziglang.org/builds';
 
-// The list of mirrors we attempt to fetch from. These need not be trusted, as
-// we always verify the minisign signature.
-// This is an array of URLs.
-const MIRRORS = require('./mirrors.json').map((x) => x[0]);
+// The URL of the mirror list. This should be an ASCII-encoded text file, with one mirror per LF-separated line.
+const MIRRORS_URL = 'https://ziglang.org/download/community-mirrors.txt';
 
 async function downloadFromMirror(mirror, tarball_filename) {
   const tarball_path = await tc.downloadTool(`${mirror}/${tarball_filename}?source=github-actions`);
@@ -52,9 +50,21 @@ async function downloadTarball(tarball_filename) {
     return await downloadFromMirror(preferred_mirror, tarball_filename);
   }
 
+  // Fetch the list of mirrors from ziglang.org. Caching the mirror list is awkward in this context,
+  // so if the list is inaccessible, we just fetch from ziglang.org as a fallback.
+  let mirrors = [];
+  try {
+    const mirrors_response = await fetch(MIRRORS_URL);
+    mirrors = (await mirrors_response.text()).split('\n').filter((url) => url.length != 0);
+  } catch {
+    // For some reason the mirrors are inaccessible. That's okay; allow ourselves to fall back to ziglang.org below.
+  }
+
+  core.info(`Available mirrors: ${mirrors.join(", ")}`);
+
   // We will attempt all mirrors before making a last-ditch attempt to the official download.
   // To avoid hammering a single mirror, we first randomize the array.
-  const shuffled_mirrors = MIRRORS.map((m) => [m, Math.random()]).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
+  const shuffled_mirrors = mirrors.map((m) => [m, Math.random()]).sort((a, b) => a[1] - b[1]).map((a) => a[0]);
   for (const mirror of shuffled_mirrors) {
     core.info(`Attempting mirror: ${mirror}`);
     try {
