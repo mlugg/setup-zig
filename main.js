@@ -17,9 +17,9 @@ const CANONICAL = 'https://ziglang.org/builds';
 const MIRRORS_URL = 'https://ziglang.org/download/community-mirrors.txt';
 
 async function downloadFromMirror(mirror, tarball_filename) {
-  const tarball_path = await tc.downloadTool(`${mirror}/${tarball_filename}?source=github-actions`);
+  const tarball_path = await tc.downloadTool(`${mirror}/${tarball_filename}?source=github-mlugg-setup-zig`);
 
-  const signature_response = await fetch(`${mirror}/${tarball_filename}.minisig?source=github-actions`);
+  const signature_response = await fetch(`${mirror}/${tarball_filename}.minisig?source=github-mlugg-setup-zig`);
   const signature_data = Buffer.from(await signature_response.arrayBuffer());
 
   const tarball_data = await fs.readFile(tarball_path);
