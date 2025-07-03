@@ -11,7 +11,8 @@ const minisign = require('./minisign');
 const MINISIGN_KEY = 'RWSGOq2NVecA2UPNdBUZykf1CCb147pkmdtYxgb3Ti+JO/wCYvhbAb/U';
 
 // The base URL of the official builds of Zig. This is only used as a fallback, if all mirrors fail.
-const CANONICAL = 'https://ziglang.org/builds';
+const CANONICAL_DEV = 'https://ziglang.org/builds';
+const CANONICAL_RELEASE = 'https://ziglang.org/download';
 
 // The URL of the mirror list. This should be an ASCII-encoded text file, with one mirror per LF-separated line.
 const MIRRORS_URL = 'https://ziglang.org/download/community-mirrors.txt';
@@ -74,8 +75,12 @@ async function downloadTarball(tarball_filename) {
       // continue loop to next mirror
     }
   }
-  core.info(`Attempting official: ${CANONICAL}`);
-  return await downloadFromMirror(CANONICAL, tarball_filename);
+
+  // As a fallback, attempt ziglang.org.
+  const zig_version = tarball_filename.match(/\d+\.\d+\.\d+(-dev\.\d+\+[0-9a-f]+)?/)[0];
+  const canonical = zig_version.includes("-dev") ? CANONICAL_DEV : `${CANONICAL_RELEASE}/${zig_version}`;
+  core.info(`Attempting official: ${canonical}`);
+  return await downloadFromMirror(canonical, tarball_filename);
 }
 
 async function retrieveTarball(tarball_name, tarball_ext) {
