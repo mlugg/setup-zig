@@ -9,10 +9,16 @@ const VERSIONS_JSON = 'https://ziglang.org/download/index.json';
 const MACH_VERSIONS_JSON = 'https://pkg.machengine.org/zig/index.json';
 const CACHE_PREFIX = "setup-zig-global-cache-";
 
+// The following regexes pull specific values out of ZON.
+// This is bad and should be replaced with an actual parser -- see #50.
+
 // Mach uses `mach_zig_version` in `build.zig.zon` to signify Mach nominated versions.
 // See: https://github.com/marler8997/anyzig?tab=readme-ov-file#mach-versions-and-download-mirror
 const MACH_ZIG_VERSION_REGEX = /\.\s*mach_zig_version\s*=\s*"(.*?)"/;
 const MINIMUM_ZIG_VERSION_REGEX = /\.\s*minimum_zig_version\s*=\s*"(.*?)"/;
+// This is tied quite precisely to the output of `zig env`. It's just a temporary workaround until
+// I get around to implementing a ZON parser here.
+const ZIG_ENV_CACHE_DIR_REGEX = /^\s*\.global_cache_dir = "(.*)",$/m;
 
 let _cached_version = null;
 async function getVersion() {
@@ -200,15 +206,46 @@ async function getCachePrefix() {
 }
 
 async function getZigCachePath() {
-  let env_output = '';
-  await exec.exec('zig', ['env'], {
-    listeners: {
-      stdout: (data) => {
-        env_output += data.toString();
-      },
-    },
-  });
-  return JSON.parse(env_output)['global_cache_dir'];
+  const env_zon = (await exec.getExecOutput('zig', ['env'])).stdout;
+  if (env_zon[0] !== '.') {
+    // JSON (legacy)
+    return JSON.parse(env_zon)['global_cache_dir'];
+  }
+  const match = ZIG_ENV_CACHE_DIR_REGEX.exec(env_zon);
+  if (!match) throw new Error("Failed to parse cache directory from 'zig env' output");
+  return parseZigString(match[1]);
+}
+function parseZigString(raw) {
+  // This function is neither complete (Unicode codepoint literals), nor correct (byte-escapes
+  // aren't really compatible with JS "strings"). It's just a temporary best-effort implementation
+  // which can hopefully handle any real-world directory path we encounter.
+  let result = "";
+  let i = 0;
+  while (i < raw.length) {
+    if (raw[i] != '\\') {
+      result += raw[i];
+      i += 1;
+      continue;
+    }
+    i += 2;
+    switch (raw[i - 1]) {
+      case 'n': result += '\n'; break;
+      case 'r': result += '\r'; break;
+      case '\\': result += '\\'; break;
+      case 't': result += '\t'; break;
+      case '\'': result += '\''; break;
+      case '"': result += '"'; break;
+      case 'x': {
+        const byte_val = parseInt(raw.slice(i, i + 2), 16);
+        result += String.fromCharCode(byte_val);
+        i += 2;
+        break;
+      }
+      case 'u': throw new Error("unsupported Unicode codepoint literal in string");
+      default: throw new Error("invalid escape code in string");
+    }
+  }
+  return result;
 }
 
 async function getTarballCachePath() {
