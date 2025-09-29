@@ -25,6 +25,6 @@ inputs:
     required: false
     default: ''
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'main.js'
   post: 'post.js'
