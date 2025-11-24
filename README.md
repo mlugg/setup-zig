@@ -1,6 +1,7 @@
 # setup-zig
 
-Install the Zig compiler for use in an Actions workflow, and preserve the Zig cache across workflow runs.
+Install the Zig compiler for use in a Forgejo Actions or GitHub Actions workflow, and preserve the Zig cache
+across workflow runs.
 
 ## Usage
 
@@ -11,9 +12,16 @@ jobs:
     name: Build and Test
     steps:
       - uses: actions/checkout@v3
-      - uses: mlugg/setup-zig@v2
+      - uses: https://codeberg.org/mlugg/setup-zig@v2
       - run: zig build test
 ```
+
+> [!IMPORTANT]
+> When using GitHub Actions, the `setup-zig` URL in the example above must be replaced with a simple
+> repository reference, because GitHub Actions does not support Actions hosted outside of GitHub:
+> ```yaml
+>       - uses: mlugg/setup-zig@v2
+> ```
 
 This will automatically download Zig and install it to `PATH`.
 
@@ -25,7 +33,7 @@ the Zig version from the `minimum_zig_version` field in `build.zig.zon`, falling
 isn't possible.
 
 ```yaml
-  - uses: mlugg/setup-zig@v2
+  - uses: https://codeberg.org/mlugg/setup-zig@v2
     with:
       version: 0.13.0
 ```
@@ -37,7 +45,7 @@ isn't possible.
 If you want to use one specific mirror, you can set it using the `mirror` option:
 
 ```yaml
-  - uses: mlugg/setup-zig@v2
+  - uses: https://codeberg.org/mlugg/setup-zig@v2
     with:
       mirror: 'https://pkg.machengine.org/zig'
 ```
@@ -49,12 +57,12 @@ website repository, which is where the list of mirrors is maintained.
 
 If necessary, the caching of the global Zig cache directory can be disabled by setting the option
 `use-cache: false`. Don't do this without reason: preserving the Zig cache will typically speed things up
-and decrease the load on GitHub's runners.
+and decrease the load on your Actions runners.
 
 If you are using a [matrix strategy][matrix] for your workflow, you may need to populate the `cache-key` option
-with all of your matrix variables to ensure that every job is correctly cached. Unfortunately, GitHub does not
-provide any means for the Action to automatically distinguish jobs in a matrix. However, variables which select
-the runner OS can be omitted from the `cache-key`, since the runner OS is included in the cache key by default.
+with all of your matrix variables to ensure that every job is correctly cached. Unfortunately, there is no way
+for the Action to automatically distinguish jobs in a matrix. However, variables which select the runner platform
+may be omitted from the `cache-key`, since the runner platform is included in the cache key by default.
 
 Zig cache directories can get incredibly large over time. By default, this Action will clear the cache directory
 once its size exceeds 2 GiB. This threshold can be changed by setting the `cache-size-limit` option to a different
