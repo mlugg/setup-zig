@@ -116,7 +116,7 @@ async function getTarballName() {
   const version = await getVersion();
 
   let arch = {
-    arm:      'armv7a',
+    arm:      'arm',
     arm64:    'aarch64',
     loong64:  'loongarch64',
     mips:     'mips',
@@ -137,6 +137,11 @@ async function getTarballName() {
     arch = 'powerpc64le';
   }
 
+  // Before 0.15.1, Zig used 'armv7a' as the arch name for ARM binaries.
+  if (arch === 'arm' && versionLessThan(version, "0.15.1")) {
+    arch = 'armv7a';
+  }
+
   const platform = {
     aix:     'aix',
     android: 'android',
@@ -148,45 +153,44 @@ async function getTarballName() {
     win32:   'windows',
   }[os.platform()];
 
-  if (useLegacyTarballName(version)) {
+  // Before 0.14.1, Zig tarballs were named like 'zig-linux-x86_64-0.14.0', with the arch
+  // and OS fields reversed from the order we use today.
+  if (versionLessThan(version, "0.15.0-dev.631+9a3540d61") && versionLessThan(version, "0.14.1")) {
     return `zig-${platform}-${arch}-${version}`;
-  } else {
-    return `zig-${arch}-${platform}-${version}`;
   }
+
+  return `zig-${arch}-${platform}-${version}`;
 }
-// Before version 0.14.1 / dev version 0.15.0-dev.631+9a3540d61, Zig tarballs were named like:
-//   `zig-linux-x86_64-0.14.0`
-// After that version, they are named like:
-//   `zig-x86_64-linux-0.14.0`
-// So, the architecture and OS fields were flipped to align with how target triples work.
-function useLegacyTarballName(version) {
-  // We are looking for full versions above
-  const parts = version.split('.');
-  if (parts.length == 3) {
-    // We have a full version like '0.14.0'
-    if (parts[0] !== "0") return false; // 1.x.x or greater
-    if (parts[1] === "14" && parts[2] !== "0") return false; // 0.14.1 or greater
-    const minor = parseInt(parts[1]);
-    if (!Number.isFinite(minor)) return false; // malformed minor version
-    if (minor >= 15) return false; // 0.15.x or greater
-    return true; // 0.14.1
-  } else if (parts.length == 4) {
-    // We have a dev version like '0.15.0-dev.631+9a3540d61'
-    if (parts[0] !== "0") return false; // 1.x.x or greater
-    if (parts[1] === "15" && parts[2] == "0-dev") {
-      const dev_version = parseInt(parts[3].split('+')[0]); // this is the '631' part in the example above
-      if (!Number.isFinite(dev_version)) return false; // malformed dev version
-      if (dev_version >= 631) return false; // 0.15.0-dev.631+9a3540d61 or greater
-      return true; // 0.15.0-dev before the change
-    }
-    const minor = parseInt(parts[1]);
-    if (!Number.isFinite(minor)) return false; // malformed minor version
-    if (minor >= 15) return false; // 0.15.1-dev or greater (in practice this is 0.16.0-dev or greater)
-    return true; // We caught 0.15.0-dev above, so this must be 0.14.x-dev or below.
-  } else {
-    // Malformed version
-    return false;
-  }
+
+// Returns `true` if `cur_ver` represents a version less then (i.e. older than) `min_ver`.
+// Otherwise, returns `false`.
+// If `cur_ver` or `min_ver` is malformed, returns `false`.
+function versionLessThan(cur_ver, min_ver) {
+  const cur = parseVersion(cur_ver);
+  const min = parseVersion(min_ver);
+  if (cur === null || min === null) return false;
+  // Treating 0.1.2 as 0.1.2-dev+INF makes the comparisons easy!
+  const cur_dev = cur.dev === null ? Infinity : cur.dev;
+  const min_dev = min.dev === null ? Infinity : min.dev;
+
+  if (cur.major != min.major) return cur.major < min.major;
+  if (cur.minor != min.minor) return cur.minor < min.minor;
+  if (cur.patch != min.patch) return cur.patch < min.patch;
+  return cur.dev < min.dev;
+}
+
+// Returns object with keys 'major', 'minor', 'patch', and 'dev'.
+// 'dev' is `null` if `str` was not a dev version.
+// On failure, returns `null`.
+function parseVersion(str) {
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:-dev\.(\d+)\+[0-9a-f]*)?$/.exec(str);
+  if (match === null) return null;
+  return {
+    major: parseInt(match[0]),
+    minor: parseInt(match[1]),
+    patch: parseInt(match[2]),
+    dev: match[3] === null ? null : parseInt(match[3]),
+  };
 }
 
 async function getTarballExt() {
