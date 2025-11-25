@@ -248,15 +248,10 @@ function parseZigString(raw) {
   return result;
 }
 
-async function getTarballCachePath() {
-  return path.join(process.env['RUNNER_TEMP'], await getTarballName());
-}
-
 module.exports = {
   getVersion,
   getTarballName,
   getTarballExt,
   getCachePrefix,
   getZigCachePath,
-  getTarballCachePath,
 };

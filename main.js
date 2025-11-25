@@ -85,14 +85,15 @@ async function downloadTarball(tarball_filename) {
 
 async function retrieveTarball(tarball_name, tarball_ext) {
   const cache_key = `setup-zig-tarball-${tarball_name}`;
-  const tarball_cache_path = await common.getTarballCachePath();
+  const tarball_basename = `${tarball_name}${tarball_ext}`;
+  const tarball_cache_path = path.join(process.env['RUNNER_TEMP'], tarball_basename);
 
   if (await cache.restoreCache([tarball_cache_path], cache_key)) {
     return tarball_cache_path;
   }
 
   core.info(`Cache miss. Fetching Zig ${await common.getVersion()}`);
-  const downloaded_path = await downloadTarball(`${tarball_name}${tarball_ext}`);
+  const downloaded_path = await downloadTarball(tarball_basename);
   await fs.copyFile(downloaded_path, tarball_cache_path)
   await cache.saveCache([tarball_cache_path], cache_key);
   return tarball_cache_path;
