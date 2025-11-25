@@ -190,11 +190,8 @@ function useLegacyTarballName(version) {
 }
 
 async function getTarballExt() {
-  return {
-    linux:  '.tar.xz',
-    darwin: '.tar.xz',
-    win32:  '.zip',
-  }[os.platform()];
+  if (os.platform() == 'win32') return '.zip';
+  return '.tar.xz';
 }
 
 async function getCachePrefix() {
