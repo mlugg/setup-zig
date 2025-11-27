@@ -145,6 +145,7 @@ async function getTarballName() {
     sunos:   'illumos',
     linux:   'linux',
     darwin:  'macos',
+    netbsd:  'netbsd',
     openbsd: 'openbsd',
     win32:   'windows',
   }[os.platform()];
