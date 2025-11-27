@@ -142,10 +142,10 @@ async function getTarballName() {
   const platform = {
     android: 'android',
     freebsd: 'freebsd',
+    sunos:   'illumos',
     linux:   'linux',
     darwin:  'macos',
     openbsd: 'openbsd',
-    sunos:   'solaris',
     win32:   'windows',
   }[os.platform()];
 
