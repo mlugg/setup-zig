@@ -9,7 +9,7 @@ inputs:
     required: false
     default: ''
   use-cache:
-    description: 'Whether to cache the global Zig cache directory.'
+    description: 'Whether to cache the global and local Zig cache directories.'
     required: true
     default: true
   cache-key:
