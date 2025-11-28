@@ -1,0 +1,54 @@
+on: [workflow_dispatch]
+jobs:
+  test-from-project:
+    runs-on: codeberg-tiny
+    steps:
+    - name: 'Checkout'
+      uses: 'https://code.forgejo.org/actions/checkout@v3'
+      with: { fetch-depth: 0 }
+    - name: 'Create build.zig.zon'
+      run: |
+        cat >build.zig.zon <<EOF
+        .{
+            .name = "test-project"
+            .version = "0.0.0",
+            .minimum_zig_version = "0.13.0",
+            .paths = .{""},
+            .fingerprint = 0x43eaf07faceda5c3,
+        }
+        EOF
+    - name: 'Setup Zig'
+      uses: './'
+      with: { version: '${{ matrix.zig_version }}' }
+    - name: 'Check `zig version`'
+      run: |
+        if [ "$(zig version)" != '0.13.0' ]; then
+          echo "version mismatch: expected '0.13.0', got '$(zig version)'"
+          exit 1
+        fi
+  test:
+    runs-on: codeberg-tiny
+    strategy:
+      matrix:
+        zig_version:
+          - 'master'
+          - 'latest'
+          - '2024.5.0-mach'
+          - '0.14.0'
+          - '0.14.1' # zig-linux-x86_64 -> zig-x86_64-linux
+          - '0.15.0'
+          - '0.15.1' # armv7a -> arm (though testing on ARM is TODO!)
+          - '0.15.2' # some x.x.2
+    steps:
+    - name: 'Checkout'
+      uses: 'https://code.forgejo.org/actions/checkout@v3'
+      with: { fetch-depth: 0 }
+    - name: 'Setup Zig'
+      uses: './'
+      with: { version: '${{ matrix.zig_version }}' }
+    - name: 'Test `zig init`'
+      run: |
+        mkdir init
+        cd init
+        zig init
+        zig build test
