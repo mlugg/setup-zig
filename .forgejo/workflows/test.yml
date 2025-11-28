@@ -19,7 +19,6 @@ jobs:
         EOF
     - name: 'Setup Zig'
       uses: './'
-      with: { version: '${{ matrix.zig_version }}' }
     - name: 'Check `zig version`'
       run: |
         if [ "$(zig version)" != '0.13.0' ]; then
