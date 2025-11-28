@@ -1,20 +1,20 @@
-const sodium = require('sodium-native');
+const crypto = require('node:crypto');
 
 // Parse a minisign key represented as a base64 string.
 // Throws exceptions on invalid keys.
-function parseKey(key_str) {
+async function parseKey(key_str) {
   const key_info = Buffer.from(key_str, 'base64');
 
   const id = key_info.subarray(2, 10);
   const key = key_info.subarray(10);
 
-  if (key.byteLength !== sodium.crypto_sign_PUBLICKEYBYTES) {
+  if (key.byteLength !== 32) {
     throw new Error('invalid public key given');
   }
 
   return {
     id: id,
-    key: key
+    key: await crypto.subtle.importKey('raw', key, 'Ed25519', false, ['verify']),
   };
 }
 
@@ -77,25 +77,29 @@ function parseSignature(sig_buf) {
 // Given a parsed key, parsed signature file, and raw file content, verifies the signature,
 // including the global signature (hence validating the trusted comment). Does not throw.
 // Returns 'true' if the signature is valid for this file, 'false' otherwise.
-function verifySignature(pubkey, signature, file_content) {
+async function verifySignature(pubkey, signature, file_content) {
   if (!signature.key_id.equals(pubkey.id)) {
-    return false;
+    return false; // wrong key
   }
 
   let signed_content;
   if (signature.algorithm.equals(Buffer.from('ED'))) {
-    signed_content = Buffer.alloc(sodium.crypto_generichash_BYTES_MAX);
-    sodium.crypto_generichash(signed_content, file_content);
-  } else {
+    const hash = crypto.createHash('BLAKE2b512');
+    hash.update(file_content);
+    signed_content = hash.digest();
+  } else if (signature.algorithm.equals(Buffer.from('Ed'))) {
     signed_content = file_content;
+  } else {
+    return false; // unsupported algorithm
   }
-  if (!sodium.crypto_sign_verify_detached(signature.signature, signed_content, pubkey.key)) {
-    return false;
+
+  if (!await crypto.subtle.verify('Ed25519', pubkey.key, signature.signature, signed_content)) {
+    return false; // signature verification failure
   }
 
   const global_signed_content = Buffer.concat([signature.signature, signature.trusted_comment]);
-  if (!sodium.crypto_sign_verify_detached(signature.global_signature, global_signed_content, pubkey.key)) {
-    return false;
+  if (!await crypto.subtle.verify('Ed25519', pubkey.key, signature.global_signature, global_signed_content)) {
+    return false; // signature verification failure
   }
 
   return true;
