@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const core = require('@actions/core');
 const github = require('@actions/github');
-const exec = require('@actions/exec');
 
 const VERSIONS_JSON = 'https://ziglang.org/download/index.json';
 const MACH_VERSIONS_JSON = 'https://pkg.machengine.org/zig/index.json';
