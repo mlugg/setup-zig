@@ -172,7 +172,7 @@ function versionLessThan(cur_ver, min_ver) {
   if (cur.major != min.major) return cur.major < min.major;
   if (cur.minor != min.minor) return cur.minor < min.minor;
   if (cur.patch != min.patch) return cur.patch < min.patch;
-  return cur.dev < min.dev;
+  return cur_dev < min_dev;
 }
 
 // Returns object with keys 'major', 'minor', 'patch', and 'dev'.
