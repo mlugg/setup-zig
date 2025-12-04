@@ -179,13 +179,13 @@ function versionLessThan(cur_ver, min_ver) {
 // 'dev' is `null` if `str` was not a dev version.
 // On failure, returns `null`.
 function parseVersion(str) {
-  const match = /^(\d+)\.(\d+)\.(\d+)(?:-dev\.(\d+)\+[0-9a-f]*)?$/.exec(str);
+  const match = /^(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)(?:-dev\.(?<dev>\d+)\+[0-9a-f]*)?$/.exec(str);
   if (match === null) return null;
   return {
-    major: parseInt(match[0]),
-    minor: parseInt(match[1]),
-    patch: parseInt(match[2]),
-    dev: match[3] === null ? null : parseInt(match[3]),
+    major: parseInt(match.groups['major']),
+    minor: parseInt(match.groups['minor']),
+    patch: parseInt(match.groups['patch']),
+    dev: match.groups['dev'] === undefined ? null : parseInt(match.groups['dev']),
   };
 }
 
