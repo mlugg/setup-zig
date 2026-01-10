@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const core = require('@actions/core');
 const tc = require('@actions/tool-cache');
 const cache = require('@actions/cache');
+const exec = require('@actions/exec');
 const common = require('./common');
 const minisign = require('./minisign');
 
@@ -178,6 +179,8 @@ async function main() {
     }
 
     core.addPath(zig_dir);
+    const zig_version = (await exec.getExecOutput('zig', ['version'])).stdout.trim();
+    core.info(`Resolved Zig version ${zig_version}`);
 
     const cache_path = common.getZigCachePath();
     core.exportVariable('ZIG_GLOBAL_CACHE_DIR', cache_path);
