@@ -187,8 +187,14 @@ async function main() {
     core.exportVariable('ZIG_LOCAL_CACHE_DIR', cache_path);
 
     if (core.getBooleanInput('use-cache')) {
-      core.info('Attempting restore of Zig cache');
-      await cache.restoreCache([cache_path], await common.getCachePrefix());
+      const cache_prefix = await common.getCachePrefix();
+      core.info(`Attempting restore of Zig cache with prefix '${cache_prefix}'`);
+      const hit = await cache.restoreCache([cache_path], cache_prefix);
+      if (hit === undefined) {
+        core.info(`Cache miss: leaving Zig cache directory at ${cache_path} unpopulated`);
+      } else {
+        core.info(`Cache hit (key '${hit}'): populating Zig cache directory at ${cache_path}`);
+      }
     }
   } catch (err) {
     core.setFailed(err.message);

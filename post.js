@@ -18,7 +18,7 @@ async function main() {
       }
 
       if (accessible) {
-        core.info('Checking cache size');
+        core.info(`Checking size of cache directory at ${cache_path}`);
         const size = await dirSize(cache_path);
         const size_limit = core.getInput('cache-size-limit') * 1024 * 1024; // MiB -> bytes
         if (size_limit !== 0 && size > size_limit) {
@@ -33,7 +33,7 @@ async function main() {
 
         const prefix = await common.getCachePrefix();
         const name = `${prefix}${github.context.runId}-${github.context.runAttempt}`;
-        core.info('Saving Zig cache');
+        core.info(`Saving Zig cache with key '${name}'`);
         await cache.saveCache([cache_path], name);
       } else {
         core.info('Zig cache directory is inaccessible; nothing to save');
@@ -49,14 +49,18 @@ async function dirSize(dir_path) {
     let total = 0;
     for (const ent of await fs.readdir(dir_path, { withFileTypes: true, recursive: true })) {
       if (ent.isFile()) {
+        const p = path.join(ent.parentPath, ent.name);
         try {
-          const stat = await fs.stat(path.join(ent.parentPath, ent.name));
+          const stat = await fs.stat(p);
           total += stat.size;
-        } catch {}
+        } catch {
+          core.warning(`Failed to stat ${p}: ${err}`);
+        }
       }
     }
     return total;
-  } catch {
+  } catch (err) {
+    core.warning(`Failed to compute size of '${dir_path}': ${err}`);
     return 0;
   }
 }
